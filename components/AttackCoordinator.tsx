@@ -150,7 +150,8 @@ export const AttackCoordinator: React.FC = () => {
       } else {
         const timeForFirst20 = 20 / unit.speed;
         const remainingDistance = distance - 20;
-        const boostedSpeed = unit.speed * (1 + m.tsLevel * 0.1);
+        // Tournament Square provides 20% (0.2) bonus per level for distances >= 20
+        const boostedSpeed = unit.speed * (1 + m.tsLevel * 0.2);
         const timeForRemainder = remainingDistance / boostedSpeed;
         travelTimeHours = timeForFirst20 + timeForRemainder;
       }
@@ -382,7 +383,10 @@ export const AttackCoordinator: React.FC = () => {
                             const unit = TROOP_DATA.find(u => u.unit === m.unitName && u.tribe === m.tribe);
                             if (!unit) return '---';
                             const dist = calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY);
-                            let tHours = dist <= 20 ? dist / unit.speed : (20/unit.speed) + ((dist-20)/(unit.speed*(1+m.tsLevel*0.1)));
+                            // TS Logic: 20% bonus per level for dist > 20
+                            let tHours = dist <= 20 
+                              ? dist / unit.speed 
+                              : (20 / unit.speed) + ((dist - 20) / (unit.speed * (1 + m.tsLevel * 0.2)));
                             const launch = new Date(new Date(targetTime + ':00Z').getTime() - tHours * 3600000);
                             return launch.toISOString().slice(11, 19);
                           })()}
@@ -473,10 +477,10 @@ export const AttackCoordinator: React.FC = () => {
           
           <div className="p-5 bg-slate-800/80 border border-slate-700 rounded-xl space-y-3">
             <h4 className="text-xs font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
-               <Zap className="w-3 h-3" /> Timezone Disclaimer
+               <Zap className="w-3 h-3" /> Timezone & TS Disclaimer
             </h4>
             <p className="text-[11px] text-slate-400 leading-relaxed italic">
-              All calculations are strictly in <strong>UTC</strong>. This matches the standard Travian Legends server time for major regions. Ensure your game interface is set to UTC or offset accordingly.
+              All calculations are strictly in <strong>UTC</strong>. Tournament Square (TS) provides a 20% speed bonus per level for troop travel beyond the first 20 tiles. At Level 20, speed is increased to 500% (5.0x) for the distance remainder.
             </p>
           </div>
         </div>
