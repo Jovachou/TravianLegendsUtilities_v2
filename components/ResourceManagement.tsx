@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { TribeName, ResourceInput, UnitData } from '../types';
-import { Calculator, PieChart, Info, Wheat, Plus, Trash2 } from 'lucide-react';
+// Fix: Added missing 'Box' icon import from 'lucide-react'
+import { Calculator, PieChart, Info, Wheat, Plus, Trash2, Coins, Zap, Box } from 'lucide-react';
 
 interface FwdItem {
   id: string;
@@ -32,7 +33,6 @@ export const ResourceManagement: React.FC = () => {
   const filteredFwdUnits = useMemo(() => TROOP_DATA.filter(u => u.tribe === fwdTribe), [fwdTribe]);
   
   useEffect(() => {
-    // When tribe changes, update any units in the list that don't belong to the new tribe
     setFwdItems(prev => prev.map(item => {
       const exists = filteredFwdUnits.some(u => u.unit === item.unitName);
       return exists ? item : { ...item, unitName: filteredFwdUnits[0]?.unit || '' };
@@ -49,7 +49,7 @@ export const ResourceManagement: React.FC = () => {
 
   const removeFwdItem = (id: string) => {
     if (fwdItems.length > 1) {
-      setFwdItems(fwdItems.filter(i => i.id !== id));
+      setFwdItems(fwdItems.length > 0 ? fwdItems.filter(i => i.id !== id) : []);
     }
   };
 
@@ -59,7 +59,6 @@ export const ResourceManagement: React.FC = () => {
 
   const fwdResults = useMemo(() => {
     const totals = { wood: 0, clay: 0, iron: 0, crop: 0, upkeep: 0, time: 0, sum: 0 };
-    
     fwdItems.forEach(item => {
       const unit = TROOP_DATA.find(u => u.unit === item.unitName);
       if (unit) {
@@ -72,16 +71,14 @@ export const ResourceManagement: React.FC = () => {
         totals.sum += unit.sum_resources * item.amount;
       }
     });
-
-    // Add global crop reserve
     totals.crop += fwdCropConsumption;
     totals.sum += fwdCropConsumption;
-
     return totals;
   }, [fwdItems, fwdCropConsumption]);
 
   // Backward Planning Logic
   const filteredBwdUnits = useMemo(() => TROOP_DATA.filter(u => u.tribe === bwdTribe), [bwdTribe]);
+  
   useEffect(() => {
     setBwdSelections(prev => prev.map(sel => {
         const unitExists = filteredBwdUnits.some(u => u.unit === sel.unitName);
@@ -91,10 +88,15 @@ export const ResourceManagement: React.FC = () => {
 
   const bwdResults = useMemo(() => {
     const activeSelections = bwdSelections.filter(s => s.unitName !== '');
-    if (activeSelections.length === 0) return [];
-    const effectiveCrop = Math.max(0, bwdResources.crop - bwdCropConsumption);
+    if (activeSelections.length === 0) return { standard: [], gold: [], totalSum: 0, availableForGold: 0 };
     
-    const results = activeSelections.map(sel => {
+    // Total physical sum
+    const totalRawSum = bwdResources.wood + bwdResources.clay + bwdResources.iron + bwdResources.crop;
+    const effectiveCrop = Math.max(0, bwdResources.crop - bwdCropConsumption);
+    const availableForGold = Math.max(0, totalRawSum - bwdCropConsumption);
+    
+    // 1. Standard Calculation (Restrictive Resource)
+    const standard = activeSelections.map(sel => {
       const unit = TROOP_DATA.find(u => u.unit === sel.unitName)!;
       const portionW = (bwdResources.wood * (sel.percentage / 100));
       const portionCl = (bwdResources.clay * (sel.percentage / 100));
@@ -108,18 +110,20 @@ export const ResourceManagement: React.FC = () => {
         Math.floor(portionCr / unit.crop)
       );
 
-      return {
-        unitName: sel.unitName,
-        count,
-        cost: {
-            wood: count * unit.wood,
-            clay: count * unit.clay,
-            iron: count * unit.iron,
-            crop: count * unit.crop
-        }
-      };
+      return { unitName: sel.unitName, count };
     });
-    return results;
+
+    // 2. Gold Calculation (Total Resource Sum)
+    const gold = activeSelections.map(sel => {
+      const unit = TROOP_DATA.find(u => u.unit === sel.unitName)!;
+      const resourceBudget = (availableForGold * (sel.percentage / 100));
+      const unitTotalCost = unit.wood + unit.clay + unit.iron + unit.crop;
+      const count = Math.floor(resourceBudget / unitTotalCost);
+
+      return { unitName: sel.unitName, count };
+    });
+
+    return { standard, gold, totalSum: totalRawSum, availableForGold };
   }, [bwdResources, bwdSelections, bwdTribe, bwdCropConsumption]);
 
   const formatTime = (seconds: number) => {
@@ -259,60 +263,67 @@ export const ResourceManagement: React.FC = () => {
           </select>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-[10px] font-bold text-orange-400 mb-1 uppercase">Wood</label>
-                    <input 
-                        type="number" 
-                        value={bwdResources.wood} 
-                        onChange={(e) => setBwdResources({...bwdResources, wood: Number(e.target.value)})}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none"
-                    />
-                </div>
-                <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-[10px] font-bold text-red-400 mb-1 uppercase">Clay</label>
-                    <input 
-                        type="number" 
-                        value={bwdResources.clay} 
-                        onChange={(e) => setBwdResources({...bwdResources, clay: Number(e.target.value)})}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none"
-                    />
-                </div>
-                <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Iron</label>
-                    <input 
-                        type="number" 
-                        value={bwdResources.iron} 
-                        onChange={(e) => setBwdResources({...bwdResources, iron: Number(e.target.value)})}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none"
-                    />
-                </div>
-                <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-[10px] font-bold text-green-400 mb-1 uppercase">Crop Current</label>
-                    <input 
-                        type="number" 
-                        value={bwdResources.crop} 
-                        onChange={(e) => setBwdResources({...bwdResources, crop: Number(e.target.value)})}
-                        className={`w-full bg-slate-900 border ${bwdResources.crop < bwdCropConsumption ? 'border-red-500' : 'border-slate-700'} rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none`}
-                    />
-                </div>
-            </div>
-            <div>
-                <label className="block text-[10px] font-bold text-green-500 uppercase mb-1 flex items-center gap-1">
-                    <Wheat className="w-3 h-3" /> Crop Consumption / hr
-                </label>
-                <input 
-                    type="number" 
-                    placeholder="Reserved amount"
-                    value={bwdCropConsumption || ''} 
-                    onChange={(e) => setBwdCropConsumption(Number(e.target.value))}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-1.5 text-sm focus:ring-1 focus:ring-green-500 outline-none h-[calc(100%-20px)]"
-                />
-            </div>
+        {/* Group: What you have */}
+        <div className="bg-slate-900/40 p-5 rounded-xl border border-slate-700 space-y-4">
+          <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            <Box className="w-3 h-3" /> What you have
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2 sm:col-span-1">
+                      <label className="block text-[10px] font-bold text-orange-400 mb-1 uppercase">Wood</label>
+                      <input 
+                          type="number" 
+                          value={bwdResources.wood} 
+                          onChange={(e) => setBwdResources({...bwdResources, wood: Number(e.target.value)})}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none"
+                      />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                      <label className="block text-[10px] font-bold text-red-400 mb-1 uppercase">Clay</label>
+                      <input 
+                          type="number" 
+                          value={bwdResources.clay} 
+                          onChange={(e) => setBwdResources({...bwdResources, clay: Number(e.target.value)})}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none"
+                      />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Iron</label>
+                      <input 
+                          type="number" 
+                          value={bwdResources.iron} 
+                          onChange={(e) => setBwdResources({...bwdResources, iron: Number(e.target.value)})}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none"
+                      />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                      <label className="block text-[10px] font-bold text-green-400 mb-1 uppercase">Crop Current</label>
+                      <input 
+                          type="number" 
+                          value={bwdResources.crop} 
+                          onChange={(e) => setBwdResources({...bwdResources, crop: Number(e.target.value)})}
+                          className={`w-full bg-slate-900 border ${bwdResources.crop < bwdCropConsumption ? 'border-red-500' : 'border-slate-700'} rounded-md px-2 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none`}
+                      />
+                  </div>
+              </div>
+              <div>
+                  <label className="block text-[10px] font-bold text-green-500 uppercase mb-1 flex items-center gap-1">
+                      <Wheat className="w-3 h-3" /> Crop Consumption / hr
+                  </label>
+                  <input 
+                      type="number" 
+                      placeholder="Amount to reserve"
+                      value={bwdCropConsumption || ''} 
+                      onChange={(e) => setBwdCropConsumption(Number(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-1.5 text-sm focus:ring-1 focus:ring-green-500 outline-none h-[calc(100%-20px)]"
+                  />
+                  <span className="text-[9px] text-slate-500 mt-1 block">Constraint: NPC will keep at least this much Crop.</span>
+              </div>
+          </div>
         </div>
 
-        <div className="space-y-4 pt-4 border-t border-slate-700">
+        <div className="space-y-4 pt-4">
             <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">Unit Allocation (%)</h3>
             {bwdSelections.map((sel, idx) => (
                 <div key={idx} className="flex flex-col sm:flex-row items-center gap-4 bg-slate-900/40 p-3 rounded-lg border border-slate-700">
@@ -349,35 +360,82 @@ export const ResourceManagement: React.FC = () => {
             ))}
         </div>
 
-        {bwdResults.length > 0 && (
-            <div className="mt-4 p-4 bg-slate-900 rounded-lg border border-slate-700 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-amber-400 uppercase tracking-wider">Optimal Combination:</h4>
-                  <div className="group relative">
-                    <Info className="w-4 h-4 text-slate-500 cursor-help" />
-                    <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-slate-950 p-3 text-[11px] rounded border border-slate-700 w-56 shadow-2xl z-20">
-                      <p className="font-bold text-amber-500 mb-1 underline">Logic:</p>
-                      <p className="leading-tight text-slate-300">
-                        1. Reserves {bwdCropConsumption.toLocaleString()} crop for 1h consumption.<br/>
-                        2. Splits other resources based on your percentages.<br/>
-                        3. Calculates buildable count based on the most restrictive resource.
-                      </p>
-                    </div>
+        {/* Results Area */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Standard Distribution */}
+          <div className="space-y-3">
+            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+               <Zap className="w-3 h-3" /> Standard Build
+            </h4>
+            <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 space-y-2 h-full">
+              {bwdResults.standard.length === 0 ? (
+                <p className="text-xs text-slate-600 italic">Select units to calculate</p>
+              ) : bwdResults.standard.every(r => r.unitName === '') ? (
+                <p className="text-xs text-slate-600 italic">Select units above</p>
+              ) : bwdResults.standard.map((res, idx) => (
+                res.unitName && (
+                  <div key={idx} className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                    <span className="text-xs font-bold text-slate-300 truncate max-w-[100px]">{res.unitName}</span>
+                    <span className="text-sm font-mono font-bold text-slate-100">{res.count.toLocaleString()}</span>
                   </div>
-                </div>
-                {bwdResults.map((res, idx) => (
-                    <div key={idx} className="flex justify-between items-center bg-slate-800/50 p-3 rounded border border-slate-700 transition-all hover:bg-slate-700/30">
-                        <div className="flex items-center gap-3">
-                            <span className="text-amber-500 font-black text-xl font-mono">{res.count.toLocaleString()}</span>
-                            <span className="text-slate-300 font-semibold">{res.unitName}</span>
-                        </div>
-                        <div className="text-[10px] text-slate-600 font-bold uppercase hidden sm:block">
-                            Allocation Target met
-                        </div>
-                    </div>
-                ))}
+                )
+              ))}
+              <div className="pt-2 border-t border-slate-800 mt-auto">
+                 <p className="text-[9px] text-slate-600 italic leading-tight">Limited by single restrictive resource per allocation.</p>
+              </div>
             </div>
-        )}
+          </div>
+
+          {/* Gold Use Distribution */}
+          <div className="space-y-3">
+            <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1">
+               <Coins className="w-3 h-3" /> Gold Use (NPC)
+            </h4>
+            <div className="bg-amber-950/10 p-4 rounded-lg border border-amber-500/20 space-y-2 h-full relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-2 opacity-5 pointer-events-none">
+                <Coins className="w-16 h-16 text-amber-500" />
+              </div>
+              
+              {bwdResults.gold.length === 0 ? (
+                <p className="text-xs text-amber-900/40 italic">Select units to calculate</p>
+              ) : bwdResults.gold.every(r => r.unitName === '') ? (
+                 <p className="text-xs text-amber-900/40 italic">Select units above</p>
+              ) : bwdResults.gold.map((res, idx) => (
+                res.unitName && (
+                  <div key={idx} className="flex justify-between items-center bg-amber-500/10 p-2 rounded border border-amber-500/20 z-10 relative">
+                    <span className="text-xs font-bold text-amber-200 truncate max-w-[100px]">{res.unitName}</span>
+                    <span className="text-sm font-mono font-black text-amber-400">{res.count.toLocaleString()}</span>
+                  </div>
+                )
+              ))}
+
+              <div className="pt-2 border-t border-amber-500/10 mt-auto z-10 relative">
+                 <div className="flex justify-between items-center">
+                    <span className="text-[9px] text-amber-600 uppercase font-black">Available Pool</span>
+                    <span className="text-[10px] font-mono font-bold text-amber-500">{bwdResults.availableForGold.toLocaleString()}</span>
+                 </div>
+                 <p className="text-[8px] text-amber-700 italic leading-tight mt-1">Sum of all resources minus {bwdCropConsumption.toLocaleString()} Crop.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-2 group relative">
+          <div className="flex items-center gap-2 p-3 bg-slate-900/20 border border-slate-700/50 rounded-lg cursor-help">
+            <Info className="w-4 h-4 text-slate-500" />
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">How Gold Use works</span>
+          </div>
+          <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-slate-950 p-4 text-[11px] rounded-xl border border-slate-700 w-72 shadow-2xl z-20">
+            <p className="font-bold text-amber-500 mb-2 border-b border-amber-500/20 pb-1 flex items-center gap-2">
+              <Coins className="w-3 h-3" /> NPC Merchant Logic
+            </p>
+            <ul className="space-y-2 text-slate-300 leading-snug">
+              <li>1. Calculates the <strong className="text-white">Sum of Wood + Clay + Iron + Crop</strong>.</li>
+              <li>2. Subtracts the <strong className="text-green-500">1h Crop Upkeep</strong> to ensure the village doesn't starve immediately.</li>
+              <li>3. Distributes the remaining "Total Resource Pool" using 1:1 trading to <strong className="text-white">maximize unit production</strong> based on your allocation %.</li>
+            </ul>
+          </div>
+        </div>
       </section>
     </div>
   );
