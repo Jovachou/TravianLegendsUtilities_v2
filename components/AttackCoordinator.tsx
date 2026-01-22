@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { TribeName } from '../types';
-import { Map, Clock, Target, Send, Plus, Trash2, ListOrdered, Calendar, Save, Download, Upload, Zap, Globe } from 'lucide-react';
+// Fix: Added missing 'Info' icon to lucide-react imports
+import { Map, Clock, Target, Send, Plus, Trash2, ListOrdered, Calendar, Save, Download, Upload, Zap, Globe, RefreshCw, Info } from 'lucide-react';
 
 interface AttackMission {
   id: string;
@@ -10,26 +11,26 @@ interface AttackMission {
   tribe: TribeName;
   unitName: string;
   tsLevel: number;
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
+  startX: number | string;
+  startY: number | string;
+  endX: number | string;
+  endY: number | string;
 }
 
 // Map settings for Travian wrap-around calculation
-// Based on user: -200 to 200 range (401 fields wide)
 const MAP_SIZE = 401;
 
 export const AttackCoordinator: React.FC = () => {
-  // Live UTC Clock
   const [now, setNow] = useState(new Date());
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [lastCalculated, setLastCalculated] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Initialize targetTime as UTC (toISOString returns UTC)
   const [targetTime, setTargetTime] = useState<string>(
     new Date(Date.now() + 3600000).toISOString().slice(0, 16)
   );
@@ -48,16 +49,29 @@ export const AttackCoordinator: React.FC = () => {
     }
   ]);
 
-  // Toroidal distance calculation
-  const calculateWrappedDistance = (x1: number, y1: number, x2: number, y2: number) => {
-    let dx = Math.abs(x1 - x2);
-    let dy = Math.abs(y1 - y2);
+  const calculateWrappedDistance = (x1: number | string, y1: number | string, x2: number | string, y2: number | string) => {
+    const nx1 = Number(x1) || 0;
+    const ny1 = Number(y1) || 0;
+    const nx2 = Number(x2) || 0;
+    const ny2 = Number(y2) || 0;
+
+    let dx = Math.abs(nx1 - nx2);
+    let dy = Math.abs(ny1 - ny2);
     
-    // Wrap around logic
     if (dx > MAP_SIZE / 2) dx = MAP_SIZE - dx;
     if (dy > MAP_SIZE / 2) dy = MAP_SIZE - dy;
     
     return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleRecalculate = () => {
+    setIsCalculating(true);
+    // Simulate a brief processing time for visual feedback
+    setTimeout(() => {
+      setRefreshTrigger(prev => prev + 1);
+      setLastCalculated(new Date().toLocaleTimeString());
+      setIsCalculating(false);
+    }, 300);
   };
 
   const addMission = () => {
@@ -70,10 +84,10 @@ export const AttackCoordinator: React.FC = () => {
         tribe: lastMission?.tribe || 'Romans',
         unitName: lastMission?.unitName || 'Legionnaire',
         tsLevel: lastMission?.tsLevel || 0,
-        startX: lastMission?.startX || 0,
-        startY: lastMission?.startY || 0,
-        endX: lastMission?.endX || 0,
-        endY: lastMission?.endY || 0
+        startX: lastMission?.startX ?? 0,
+        startY: lastMission?.startY ?? 0,
+        endX: lastMission?.endX ?? 0,
+        endY: lastMission?.endY ?? 0
       }
     ]);
   };
@@ -88,75 +102,50 @@ export const AttackCoordinator: React.FC = () => {
     setMissions(missions.map(m => m.id === id ? { ...m, ...updates } : m));
   };
 
-  // Persistence
+  const handleCoordChange = (id: string, field: keyof AttackMission, value: string) => {
+    if (value === '' || value === '-' || /^-?\d*$/.test(value)) {
+      updateMission(id, { [field]: value });
+    }
+  };
+
   const handleSave = () => {
     localStorage.setItem('travian_attack_plan', JSON.stringify({ missions, targetTime }));
-    alert('Attack plan saved to browser storage!');
+    alert('Attack plan saved!');
   };
 
   const handleLoad = () => {
     const saved = localStorage.getItem('travian_attack_plan');
     if (saved) {
-      const { missions: savedMissions, targetTime: savedTime } = JSON.parse(saved);
-      setMissions(savedMissions);
-      setTargetTime(savedTime);
-    } else {
-      alert('No saved plan found.');
+      try {
+        const parsed = JSON.parse(saved);
+        setMissions(parsed.missions);
+        setTargetTime(parsed.targetTime);
+        handleRecalculate();
+      } catch (e) {
+        console.error("Failed to load plan", e);
+      }
     }
   };
 
-  const handleExportCSV = () => {
-    const headers = ['Order', 'Label', 'Tribe', 'Unit', 'TS Level', 'Source X', 'Source Y', 'Target X', 'Target Y', 'Distance', 'Launch Time (UTC)', 'Travel Time'];
-    const rows = calculatedMissions.map((m, i) => [
-      i + 1,
-      m.label,
-      m.tribe,
-      m.unitName,
-      m.tsLevel,
-      m.startX,
-      m.startY,
-      m.endX,
-      m.endY,
-      m.distance,
-      m.launchDate.toISOString().replace('T', ' ').slice(0, 19),
-      formatSeconds(m.travelTimeSeconds)
-    ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `attack_plan_utc_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const calculatedMissions = useMemo(() => {
-    // Treat targetTime string as UTC by appending 'Z'
+    if (!targetTime) return [];
     const arrivalDate = new Date(targetTime + ':00Z');
+    if (isNaN(arrivalDate.getTime())) return [];
     
+    // We include refreshTrigger to allow manual overrides
+    const _ = refreshTrigger;
+
     return missions.map(m => {
       const unit = TROOP_DATA.find(u => u.unit === m.unitName && u.tribe === m.tribe) || 
                    TROOP_DATA.find(u => u.tribe === m.tribe)!;
       
       const distance = calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY);
       
-      let travelTimeHours = 0;
-      if (distance <= 20) {
-        travelTimeHours = distance / unit.speed;
-      } else {
-        const timeForFirst20 = 20 / unit.speed;
-        const remainingDistance = distance - 20;
-        // Tournament Square provides 20% (0.2) bonus per level for distances >= 20
-        const boostedSpeed = unit.speed * (1 + m.tsLevel * 0.2);
-        const timeForRemainder = remainingDistance / boostedSpeed;
-        travelTimeHours = timeForFirst20 + timeForRemainder;
-      }
+      let tHours = distance <= 20 
+        ? distance / unit.speed 
+        : (20 / unit.speed) + ((distance - 20) / (unit.speed * (1 + m.tsLevel * 0.2)));
 
-      const travelTimeSeconds = Math.round(travelTimeHours * 3600);
+      const travelTimeSeconds = Math.round(tHours * 3600);
       const launchDate = new Date(arrivalDate.getTime() - travelTimeSeconds * 1000);
 
       return {
@@ -167,18 +156,17 @@ export const AttackCoordinator: React.FC = () => {
         launchDate
       };
     }).sort((a, b) => a.launchDate.getTime() - b.launchDate.getTime());
-  }, [missions, targetTime]);
+  }, [missions, targetTime, refreshTrigger]);
 
   const formatSeconds = (totalSeconds: number) => {
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = Math.floor(totalSeconds % 60);
+    const s = totalSeconds % 60;
     return `${h}h ${m}m ${s}s`;
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header Section */}
       <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
           <div className="flex items-center gap-4">
@@ -187,24 +175,30 @@ export const AttackCoordinator: React.FC = () => {
             </div>
             <div>
               <h2 className="text-2xl font-bold text-white tracking-tight">Attack Coordinator</h2>
-              <p className="text-slate-400 text-sm">Coordinate multi-village operations across toroidal space.</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-slate-400 text-sm">Coordinate multi-village operations across toroidal space.</p>
+                {lastCalculated && (
+                  <span className="text-[10px] text-emerald-500 font-bold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Synced: {lastCalculated}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch gap-4 w-full xl:w-auto">
-            {/* The Time Now Box */}
             <div className="bg-slate-900 p-3 rounded-lg border border-slate-700 flex-grow min-w-[140px]">
               <label className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">
-                <Clock className="w-3 h-3 text-sky-400" /> The time now (UTC)
+                <Clock className="w-3 h-3 text-sky-400" /> Time now (UTC)
               </label>
               <div className="text-xl font-mono font-black text-sky-400">
                 {now.toISOString().slice(11, 19)}
               </div>
             </div>
 
-             <div className="bg-slate-900 p-3 rounded-lg border border-slate-700 flex-grow">
+            <div className="bg-slate-900 p-3 rounded-lg border border-slate-700 flex-grow">
               <label className="flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase mb-1 tracking-widest">
-                <Globe className="w-3 h-3" /> Target Arrival Time (UTC)
+                <Globe className="w-3 h-3" /> Target Arrival (UTC)
               </label>
               <input 
                 type="datetime-local" 
@@ -217,178 +211,77 @@ export const AttackCoordinator: React.FC = () => {
 
             <div className="flex gap-2">
               <button 
-                onClick={handleSave}
-                title="Save Plan to Browser"
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-all text-sm font-bold border border-slate-600 shadow-sm"
+                onClick={handleRecalculate} 
+                disabled={isCalculating}
+                title="Recalculate Schedule"
+                className={`px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 text-white rounded-md text-sm font-bold border border-amber-500/50 shadow-lg flex items-center justify-center transition-all ${isCalculating ? 'opacity-50' : 'active:scale-95'}`}
               >
-                <Save className="w-4 h-4" /> Save
+                <RefreshCw className={`w-4 h-4 mr-2 ${isCalculating ? 'animate-spin' : ''}`} />
+                {isCalculating ? '...' : 'Recalculate'}
               </button>
-              <button 
-                onClick={handleLoad}
-                title="Load Plan from Browser"
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-all text-sm font-bold border border-slate-600 shadow-sm"
-              >
-                <Upload className="w-4 h-4" /> Load
-              </button>
-              <button 
-                onClick={handleExportCSV}
-                title="Download CSV Export (UTC Times)"
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-md transition-all text-sm font-bold border border-sky-600 shadow-sm"
-              >
-                <Download className="w-4 h-4" /> CSV
-              </button>
+              <button onClick={handleSave} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm font-bold border border-slate-600" title="Save Plan"><Save className="w-4 h-4" /></button>
+              <button onClick={handleLoad} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-md text-sm font-bold border border-slate-600" title="Load Plan"><Upload className="w-4 h-4" /></button>
             </div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Mission Inputs */}
         <div className="xl:col-span-2 space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-bold flex items-center gap-2 text-slate-200">
-              <Target className="w-5 h-5 text-amber-500" /> 
-              Launch Villages ({missions.length})
-            </h3>
-            <button 
-              onClick={addMission}
-              className="flex items-center gap-2 px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-md transition-all text-sm font-bold shadow-lg transform active:scale-95"
-            >
-              <Plus className="w-4 h-4" /> Add Launch
-            </button>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold flex items-center gap-2 text-slate-200"><Target className="w-5 h-5 text-amber-500" /> Launch Villages</h3>
+            <button onClick={addMission} className="flex items-center gap-2 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-md border border-slate-700 transition-all text-sm font-bold shadow-sm"><Plus className="w-4 h-4" /> Add Village</button>
           </div>
 
           <div className="space-y-4 max-h-[1200px] overflow-y-auto pr-2 custom-scrollbar">
-            {missions.map((m, idx) => (
-              <div key={m.id} className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg relative group transition-all hover:border-slate-500 hover:shadow-2xl">
-                <button 
-                  onClick={() => removeMission(m.id)}
-                  className="absolute -top-2 -right-2 bg-red-600 text-white p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-red-500"
-                  title="Remove Mission"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-
+            {missions.map((m) => (
+              <div key={m.id} className="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-lg relative group hover:border-slate-500 transition-colors">
+                <button onClick={() => removeMission(m.id)} className="absolute top-2 right-2 text-slate-500 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {/* Basic Info */}
                   <div className="space-y-3">
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Village / Friend</label>
-                      <input 
-                        type="text"
-                        value={m.label}
-                        onChange={e => updateMission(m.id, { label: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm font-semibold focus:ring-1 focus:ring-amber-500 outline-none text-slate-100"
-                        placeholder="e.g. Hammer 01"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Tribe</label>
-                      <select 
-                        value={m.tribe} 
-                        onChange={(e) => updateMission(m.id, { tribe: e.target.value as TribeName })}
-                        className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none appearance-none cursor-pointer"
-                      >
-                        {TRIBES.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Village Label</label>
+                    <input type="text" value={m.label} onChange={e => updateMission(m.id, { label: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none" placeholder="Village Name"/>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Tribe</label>
+                    <select value={m.tribe} onChange={e => updateMission(m.id, { tribe: e.target.value as TribeName })} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm appearance-none cursor-pointer">
+                      {TRIBES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
                   </div>
-
-                  {/* Troop Info */}
                   <div className="space-y-3">
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Slowest Unit</label>
-                      <select 
-                        value={m.unitName} 
-                        onChange={(e) => updateMission(m.id, { unitName: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm focus:ring-1 focus:ring-amber-500 outline-none appearance-none cursor-pointer"
-                      >
-                        {TROOP_DATA.filter(u => u.tribe === m.tribe).map(u => (
-                          <option key={u.unit} value={u.unit}>{u.unit}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest flex justify-between">
-                        <span>TS Level</span>
-                        <span className="text-amber-500 font-bold">{m.tsLevel}</span>
-                      </label>
-                      <input 
-                        type="range" 
-                        min="0" max="20" 
-                        value={m.tsLevel}
-                        onChange={e => updateMission(m.id, { tsLevel: Number(e.target.value) })}
-                        className="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer mt-2"
-                      />
-                    </div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">Slowest Unit</label>
+                    <select value={m.unitName} onChange={e => updateMission(m.id, { unitName: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm appearance-none cursor-pointer">
+                      {TROOP_DATA.filter(u => u.tribe === m.tribe).map(u => <option key={u.unit} value={u.unit}>{u.unit}</option>)}
+                    </select>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest flex justify-between">TS Level <span className="text-amber-500">{m.tsLevel}</span></label>
+                    <input type="range" min="0" max="20" value={m.tsLevel} onChange={e => updateMission(m.id, { tsLevel: Number(e.target.value) })} className="w-full accent-amber-500 cursor-pointer"/>
                   </div>
-
-                  {/* Launch Coord */}
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest flex items-center gap-1">
-                      <Target className="w-3 h-3 text-sky-400" /> Source (X | Y)
-                    </label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="number" 
-                        placeholder="X"
-                        value={m.startX} 
-                        onChange={e => updateMission(m.id, { startX: Number(e.target.value) })}
-                        className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-center focus:ring-1 focus:ring-sky-500 outline-none font-mono"
-                      />
-                      <input 
-                        type="number" 
-                        placeholder="Y"
-                        value={m.startY} 
-                        onChange={e => updateMission(m.id, { startY: Number(e.target.value) })}
-                        className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-center focus:ring-1 focus:ring-sky-500 outline-none font-mono"
-                      />
-                    </div>
-                    <div className="mt-4">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest flex items-center gap-1">
-                        <Target className="w-3 h-3 text-red-400" /> Target (X | Y)
-                      </label>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-sky-500 uppercase tracking-widest flex items-center gap-1"><Map className="w-2.5 h-2.5"/> Source (X|Y)</label>
                       <div className="flex gap-2">
-                        <input 
-                          type="number" 
-                          placeholder="X"
-                          value={m.endX} 
-                          onChange={e => updateMission(m.id, { endX: Number(e.target.value) })}
-                          className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-center focus:ring-1 focus:ring-red-500 outline-none font-mono"
-                        />
-                        <input 
-                          type="number" 
-                          placeholder="Y"
-                          value={m.endY} 
-                          onChange={e => updateMission(m.id, { endY: Number(e.target.value) })}
-                          className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-center focus:ring-1 focus:ring-red-500 outline-none font-mono"
-                        />
+                        <input type="text" value={m.startX} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'startX', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded text-center py-1.5 text-sm font-mono focus:border-sky-500 outline-none"/>
+                        <input type="text" value={m.startY} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'startY', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded text-center py-1.5 text-sm font-mono focus:border-sky-500 outline-none"/>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1"><Target className="w-2.5 h-2.5"/> Target (X|Y)</label>
+                      <div className="flex gap-2">
+                        <input type="text" value={m.endX} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'endX', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded text-center py-1.5 text-sm font-mono focus:border-red-500 outline-none"/>
+                        <input type="text" value={m.endY} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'endY', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded text-center py-1.5 text-sm font-mono focus:border-red-500 outline-none"/>
                       </div>
                     </div>
                   </div>
-
-                  {/* Result Panel */}
                   <div className="flex flex-col justify-end">
-                    <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-700 space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black text-slate-500 uppercase">Distance</span>
-                        <span className="text-lg font-mono font-bold text-slate-100">
-                          {calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY).toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Launch (UTC)</span>
-                        <span className="text-sm font-mono font-bold text-amber-500">
+                    <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-700 space-y-1">
+                      <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase"><span>Dist</span> <span className="text-white font-mono">{calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY).toFixed(2)}</span></div>
+                      <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase"><span>Launch</span> 
+                        <span className="text-amber-500 font-mono font-bold">
                           {(() => {
-                            const unit = TROOP_DATA.find(u => u.unit === m.unitName && u.tribe === m.tribe);
-                            if (!unit) return '---';
+                            const ad = new Date(targetTime + ':00Z');
+                            if (isNaN(ad.getTime())) return '---';
                             const dist = calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY);
-                            // TS Logic: 20% bonus per level for dist > 20
-                            let tHours = dist <= 20 
-                              ? dist / unit.speed 
-                              : (20 / unit.speed) + ((dist - 20) / (unit.speed * (1 + m.tsLevel * 0.2)));
-                            const launch = new Date(new Date(targetTime + ':00Z').getTime() - tHours * 3600000);
-                            return launch.toISOString().slice(11, 19);
+                            const unit = TROOP_DATA.find(u => u.unit === m.unitName && u.tribe === m.tribe) || { speed: 1 };
+                            let tHours = dist <= 20 ? dist / unit.speed : (20 / unit.speed) + ((dist - 20) / (unit.speed * (1 + m.tsLevel * 0.2)));
+                            return new Date(ad.getTime() - tHours * 3600000).toISOString().slice(11, 19);
                           })()}
                         </span>
                       </div>
@@ -400,88 +293,43 @@ export const AttackCoordinator: React.FC = () => {
           </div>
         </div>
 
-        {/* Chronological Timeline */}
         <div className="space-y-4">
-          <h3 className="text-lg font-bold flex items-center gap-2 text-slate-200">
-            <ListOrdered className="w-5 h-5 text-amber-500" /> 
-            Chronological Schedule (UTC)
-          </h3>
-          <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col border-t-4 border-t-amber-500">
-            <div className="p-4 bg-slate-900/80 border-b border-slate-700 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex justify-between items-center">
-              <span>Next To Launch</span>
-              <div className="flex items-center gap-1 text-amber-500/50">
-                <Globe className="w-3 h-3" />
-                UTC
-              </div>
-            </div>
-            <div className="divide-y divide-slate-700 max-h-[850px] overflow-y-auto custom-scrollbar">
-              {calculatedMissions.length === 0 ? (
-                <div className="p-12 text-center text-slate-500 italic text-sm">
-                  Plan your first attack to see the sequence.
-                </div>
-              ) : (
-                calculatedMissions.map((res, idx) => (
-                  <div key={res.id} className="p-5 hover:bg-slate-700/30 transition-all border-l-4 border-l-transparent hover:border-l-amber-500">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-amber-500 border border-slate-700">
-                            {idx + 1}
-                          </span>
-                          <h4 className="font-bold text-white text-base truncate max-w-[150px]">{res.label}</h4>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xl font-mono font-black text-amber-500 tracking-tighter leading-none">
-                          {res.launchDate.toISOString().slice(11, 19)}
-                        </div>
-                        <span className="block text-[10px] font-bold text-slate-500 mt-1 uppercase">
-                          {res.launchDate.toISOString().slice(0, 10)}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      <div className="bg-slate-900/50 px-2 py-1 rounded border border-slate-700/50 flex flex-col">
-                        <span className="text-[9px] font-black text-slate-600 uppercase">Unit</span>
-                        <span className="text-xs font-bold text-slate-300 truncate">{res.unitName}</span>
-                      </div>
-                      <div className="bg-slate-900/50 px-2 py-1 rounded border border-slate-700/50 flex flex-col">
-                        <span className="text-[9px] font-black text-slate-600 uppercase">Travel</span>
-                        <span className="text-xs font-bold text-slate-300">{formatSeconds(res.travelTimeSeconds)}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                       <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
-                          <div className="flex flex-col">
-                            <span className="text-[8px] text-slate-600 uppercase">From</span>
-                            <span className="text-sky-400 font-bold tracking-tight">({res.startX}|{res.startY})</span>
-                          </div>
-                          <div className="w-4 h-px bg-slate-700 mx-1"></div>
-                          <div className="flex flex-col">
-                            <span className="text-[8px] text-slate-600 uppercase">To</span>
-                            <span className="text-red-400 font-bold tracking-tight">({res.endX}|{res.endY})</span>
-                          </div>
-                       </div>
-                       <div className="text-right flex flex-col items-end">
-                          <span className="text-[8px] text-slate-600 uppercase font-black tracking-widest">Dist</span>
-                          <span className="text-xs font-black text-slate-400">{res.distance}</span>
-                       </div>
-                    </div>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold flex items-center gap-2 text-slate-200"><ListOrdered className="w-5 h-5 text-amber-500" /> Schedule (UTC)</h3>
+            {isCalculating && <span className="text-[10px] text-amber-500 font-bold animate-pulse">RECALCULATING...</span>}
+          </div>
+          <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl overflow-hidden divide-y divide-slate-700 border-t-4 border-t-amber-600">
+            {calculatedMissions.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 italic text-sm">No valid plan. Check target time and coordinates.</div>
+            ) : calculatedMissions.map((res, i) => (
+              <div key={res.id} className="p-4 hover:bg-slate-700/30 transition-all border-l-4 border-l-transparent hover:border-l-amber-500 flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 flex items-center justify-center bg-slate-900 rounded-full text-[9px] font-black text-amber-500 border border-slate-700">{i + 1}</span>
+                    <span className="text-sm font-bold text-white truncate max-w-[120px]">{res.label}</span>
                   </div>
-                ))
-              )}
-            </div>
+                  <span className="text-xl font-mono font-black text-amber-500 tracking-tight">{res.launchDate.toISOString().slice(11, 19)}</span>
+                </div>
+                <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                   <span className="flex items-center gap-1"><Zap className="w-2.5 h-2.5 text-slate-600"/> {res.unitName}</span>
+                   <span>{formatSeconds(res.travelTimeSeconds)} travel</span>
+                </div>
+                <div className="text-[9px] text-slate-600 font-mono mt-1 flex justify-between uppercase">
+                  <span>Src: ({res.startX}|{res.startY})</span>
+                  <span>Dist: {res.distance}</span>
+                </div>
+              </div>
+            ))}
           </div>
           
-          <div className="p-5 bg-slate-800/80 border border-slate-700 rounded-xl space-y-3">
-            <h4 className="text-xs font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
-               <Zap className="w-3 h-3" /> Timezone & TS Disclaimer
-            </h4>
-            <p className="text-[11px] text-slate-400 leading-relaxed italic">
-              All calculations are strictly in <strong>UTC</strong>. Tournament Square (TS) provides a 20% speed bonus per level for troop travel beyond the first 20 tiles. At Level 20, speed is increased to 500% (5.0x) for the distance remainder.
-            </p>
+          <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-700/50">
+            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1"><Info className="w-3 h-3"/> Coordinator Tips</h4>
+            <ul className="text-[10px] text-slate-500 space-y-1 leading-relaxed">
+              <li>• Launch times are sorted chronologically (UTC).</li>
+              <li>• Distance assumes a 401x401 toroidal map wrap.</li>
+              <li>• Level 20 TS provides 500% speed after 20 tiles.</li>
+              <li>• Always hit "Recalculate" after bulk coordinate edits.</li>
+            </ul>
           </div>
         </div>
       </div>
