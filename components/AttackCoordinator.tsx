@@ -2,7 +2,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { TribeName } from '../types';
-// Fix: Added missing 'Info' icon to lucide-react imports
 import { Map, Clock, Target, Send, Plus, Trash2, ListOrdered, Calendar, Save, Download, Upload, Zap, Globe, RefreshCw, Info } from 'lucide-react';
 
 interface AttackMission {
@@ -32,7 +31,7 @@ export const AttackCoordinator: React.FC = () => {
   }, []);
 
   const [targetTime, setTargetTime] = useState<string>(
-    new Date(Date.now() + 3600000).toISOString().slice(0, 16)
+    new Date(Date.now() + 3600000).toISOString().slice(0, 19)
   );
   
   const [missions, setMissions] = useState<AttackMission[]>([
@@ -48,6 +47,14 @@ export const AttackCoordinator: React.FC = () => {
       endY: 0
     }
   ]);
+
+  // Helper to parse the input string as a UTC Date
+  const parseAsUTC = (val: string) => {
+    if (!val) return new Date(NaN);
+    // datetime-local value is YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss
+    // Appending 'Z' makes the JS Date constructor treat it as UTC.
+    return new Date(val.endsWith('Z') ? val : val + 'Z');
+  };
 
   const calculateWrappedDistance = (x1: number | string, y1: number | string, x2: number | string, y2: number | string) => {
     const nx1 = Number(x1) || 0;
@@ -66,7 +73,6 @@ export const AttackCoordinator: React.FC = () => {
 
   const handleRecalculate = () => {
     setIsCalculating(true);
-    // Simulate a brief processing time for visual feedback
     setTimeout(() => {
       setRefreshTrigger(prev => prev + 1);
       setLastCalculated(new Date().toLocaleTimeString());
@@ -128,11 +134,10 @@ export const AttackCoordinator: React.FC = () => {
   };
 
   const calculatedMissions = useMemo(() => {
-    if (!targetTime) return [];
-    const arrivalDate = new Date(targetTime + ':00Z');
+    const arrivalDate = parseAsUTC(targetTime);
     if (isNaN(arrivalDate.getTime())) return [];
     
-    // We include refreshTrigger to allow manual overrides
+    // Manual refresh check
     const _ = refreshTrigger;
 
     return missions.map(m => {
@@ -276,7 +281,7 @@ export const AttackCoordinator: React.FC = () => {
                       <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase"><span>Launch</span> 
                         <span className="text-amber-500 font-mono font-bold">
                           {(() => {
-                            const ad = new Date(targetTime + ':00Z');
+                            const ad = parseAsUTC(targetTime);
                             if (isNaN(ad.getTime())) return '---';
                             const dist = calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY);
                             const unit = TROOP_DATA.find(u => u.unit === m.unitName && u.tribe === m.tribe) || { speed: 1 };
