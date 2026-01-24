@@ -118,14 +118,14 @@ export const ResourceManagement: React.FC = () => {
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <h2 className="text-xl font-bold flex items-center gap-2 text-white"><Calculator className="text-amber-500 w-5 h-5"/> Forward Planning</h2>
           <select value={fwdTribe} onChange={e => setFwdTribe(e.target.value as TribeName)} className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-amber-500 font-bold text-xs uppercase outline-none">
-            {TRIBES.map(t => <option key={t} value={t}>{t}</option>)}
+            {TRIBES.map(t => <option key={t} value={t} className="bg-slate-900 text-white">{t}</option>)}
           </select>
         </div>
         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
           {fwdItems.map(item => (
             <div key={item.id} className="flex gap-3 bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-slate-700 transition-colors">
               <select value={item.unitName} onChange={e => setFwdItems(fwdItems.map(i => i.id === item.id ? {...i, unitName: e.target.value} : i))} className="flex-grow bg-transparent text-slate-200 text-sm outline-none">
-                {filteredFwdUnits.map(u => <option key={u.unit} value={u.unit}>{u.unit}</option>)}
+                {filteredFwdUnits.map(u => <option key={u.unit} value={u.unit} className="bg-slate-900 text-slate-200">{u.unit}</option>)}
               </select>
               <input type="number" value={item.amount} onChange={e => setFwdItems(fwdItems.map(i => i.id === item.id ? {...i, amount: Number(e.target.value)} : i))} className="w-24 bg-slate-900 rounded px-2 py-1 text-sm font-mono text-amber-500 outline-none focus:ring-1 focus:ring-amber-500"/>
               <button onClick={() => setFwdItems(fwdItems.filter(i => i.id !== item.id))} className="text-slate-600 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4"/></button>
@@ -146,7 +146,7 @@ export const ResourceManagement: React.FC = () => {
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <h2 className="text-xl font-bold flex items-center gap-2 text-white"><PieChart className="text-amber-500 w-5 h-5"/> Backwards Planning</h2>
           <select value={bwdTribe} onChange={e => setBwdTribe(e.target.value as TribeName)} className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-amber-500 font-bold text-xs uppercase outline-none">
-            {TRIBES.map(t => <option key={t} value={t}>{t}</option>)}
+            {TRIBES.map(t => <option key={t} value={t} className="bg-slate-900 text-white">{t}</option>)}
           </select>
         </div>
 
@@ -174,8 +174,8 @@ export const ResourceManagement: React.FC = () => {
           {bwdSelections.map((sel, idx) => (
             <div key={idx} className="flex gap-4 bg-slate-950 p-3 rounded-lg border border-slate-800 items-center hover:border-slate-700 transition-colors">
               <select value={sel.unitName} onChange={e => setBwdSelections(bwdSelections.map((s, i) => i === idx ? {...s, unitName: e.target.value} : s))} className="flex-grow bg-transparent text-slate-200 text-sm outline-none">
-                <option value="">-- Select Unit --</option>
-                {filteredBwdUnits.map(u => <option key={u.unit} value={u.unit}>{u.unit}</option>)}
+                <option value="" className="bg-slate-900 text-slate-400">-- Select Unit --</option>
+                {filteredBwdUnits.map(u => <option key={u.unit} value={u.unit} className="bg-slate-900 text-slate-200">{u.unit}</option>)}
               </select>
               <input 
                 type="range" 
@@ -226,7 +226,7 @@ export const ResourceManagement: React.FC = () => {
             <button 
               onClick={() => sendToForward(bwdResults.gold)}
               disabled={!bwdResults.gold.some(r => r.count > 0)}
-              className="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed border border-amber-500/30 rounded text-[10px] font-bold uppercase tracking-widest text-amber-500 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
+              className="w-full py-2 bg-amber-500/10 hover:bg-amber-400/20 disabled:opacity-50 disabled:cursor-not-allowed border border-amber-500/30 rounded text-[10px] font-bold uppercase tracking-widest text-amber-500 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
             >
               <ArrowUpRight className="w-3 h-3"/> Commit to Forward
             </button>
