@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { TribeName } from '../types';
-import { Map, Clock, Target, Send, Plus, Trash2, ListOrdered, Calendar, Save, Download, Upload, Zap, Globe, RefreshCw, Info } from 'lucide-react';
+import { Map, Clock, Target, Send, Plus, Trash2, ListOrdered, Calendar, Save, Download, Upload, Zap, Globe, RefreshCw, Info, Layers } from 'lucide-react';
 
 interface AttackMission {
   id: string;
@@ -16,6 +16,8 @@ interface AttackMission {
   endY: number | string;
 }
 
+type GroupByOption = 'none' | 'target' | 'time';
+
 // Map settings for Travian wrap-around calculation
 const MAP_SIZE = 401;
 
@@ -24,6 +26,7 @@ export const AttackCoordinator: React.FC = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isCalculating, setIsCalculating] = useState(false);
   const [lastCalculated, setLastCalculated] = useState<string | null>(null);
+  const [groupBy, setGroupBy] = useState<GroupByOption>('none');
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -48,11 +51,8 @@ export const AttackCoordinator: React.FC = () => {
     }
   ]);
 
-  // Helper to parse the input string as a UTC Date
   const parseAsUTC = (val: string) => {
     if (!val) return new Date(NaN);
-    // datetime-local value is YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss
-    // Appending 'Z' makes the JS Date constructor treat it as UTC.
     return new Date(val.endsWith('Z') ? val : val + 'Z');
   };
 
@@ -137,7 +137,6 @@ export const AttackCoordinator: React.FC = () => {
     const arrivalDate = parseAsUTC(targetTime);
     if (isNaN(arrivalDate.getTime())) return [];
     
-    // Manual refresh check
     const _ = refreshTrigger;
 
     return missions.map(m => {
@@ -162,6 +161,39 @@ export const AttackCoordinator: React.FC = () => {
       };
     }).sort((a, b) => a.launchDate.getTime() - b.launchDate.getTime());
   }, [missions, targetTime, refreshTrigger]);
+
+  const groupedMissions = useMemo(() => {
+    if (groupBy === 'none') return [{ key: 'all', label: null, items: calculatedMissions }];
+
+    const groups: Record<string, { label: string; items: any[] }> = {};
+
+    calculatedMissions.forEach(m => {
+      let key = '';
+      let label = '';
+
+      if (groupBy === 'target') {
+        key = `${m.endX}|${m.endY}`;
+        label = `Target: ${key}`;
+      } else if (groupBy === 'time') {
+        const dateStr = m.launchDate.toISOString();
+        key = dateStr.slice(0, 13); // YYYY-MM-DDTHH
+        label = `${m.launchDate.getUTCFullYear()}-${String(m.launchDate.getUTCMonth() + 1).padStart(2, '0')}-${String(m.launchDate.getUTCDate()).padStart(2, '0')} @ ${String(m.launchDate.getUTCHours()).padStart(2, '0')}:00 UTC`;
+      }
+
+      if (!groups[key]) {
+        groups[key] = { label, items: [] };
+      }
+      groups[key].items.push(m);
+    });
+
+    return Object.entries(groups).map(([key, value]) => ({
+      key,
+      ...value
+    })).sort((a, b) => {
+      // Sort groups by the first item's launch date
+      return a.items[0].launchDate.getTime() - b.items[0].launchDate.getTime();
+    });
+  }, [calculatedMissions, groupBy]);
 
   const formatSeconds = (totalSeconds: number) => {
     const h = Math.floor(totalSeconds / 3600);
@@ -299,29 +331,59 @@ export const AttackCoordinator: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold flex items-center gap-2 text-slate-200"><ListOrdered className="w-5 h-5 text-amber-500" /> Schedule (UTC)</h3>
-            {isCalculating && <span className="text-[10px] text-amber-500 font-bold animate-pulse">RECALCULATING...</span>}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold flex items-center gap-2 text-slate-200"><ListOrdered className="w-5 h-5 text-amber-500" /> Schedule (UTC)</h3>
+              {isCalculating && <span className="text-[10px] text-amber-500 font-bold animate-pulse uppercase">Syncing...</span>}
+            </div>
+            
+            <div className="flex items-center gap-2 bg-slate-900/50 p-1.5 rounded-lg border border-slate-700">
+              <label className="text-[10px] font-black text-slate-500 uppercase pl-2 flex items-center gap-1">
+                <Layers className="w-3 h-3"/> Group:
+              </label>
+              <select 
+                value={groupBy} 
+                onChange={(e) => setGroupBy(e.target.value as GroupByOption)}
+                className="bg-transparent border-none text-xs font-bold text-amber-500 focus:ring-0 outline-none cursor-pointer"
+              >
+                <option value="none">None</option>
+                <option value="target">Target Village</option>
+                <option value="time">Time (Hour Window)</option>
+              </select>
+            </div>
           </div>
-          <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl overflow-hidden divide-y divide-slate-700 border-t-4 border-t-amber-600">
-            {calculatedMissions.length === 0 ? (
+
+          <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl overflow-hidden border-t-4 border-t-amber-600 max-h-[1200px] overflow-y-auto custom-scrollbar">
+            {groupedMissions.length === 0 || (groupedMissions.length === 1 && groupedMissions[0].items.length === 0) ? (
               <div className="p-8 text-center text-slate-500 italic text-sm">No valid plan. Check target time and coordinates.</div>
-            ) : calculatedMissions.map((res, i) => (
-              <div key={res.id} className="p-4 hover:bg-slate-700/30 transition-all border-l-4 border-l-transparent hover:border-l-amber-500 flex flex-col gap-1">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 flex items-center justify-center bg-slate-900 rounded-full text-[9px] font-black text-amber-500 border border-slate-700">{i + 1}</span>
-                    <span className="text-sm font-bold text-white truncate max-w-[120px]">{res.label}</span>
+            ) : groupedMissions.map((group) => (
+              <div key={group.key}>
+                {group.label && (
+                  <div className="bg-slate-900/80 px-4 py-2 border-y border-slate-700 flex justify-between items-center sticky top-0 z-10 backdrop-blur-sm">
+                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">{group.label}</span>
+                    <span className="text-[10px] font-black text-slate-600 uppercase">{group.items.length} Mission{group.items.length !== 1 ? 's' : ''}</span>
                   </div>
-                  <span className="text-xl font-mono font-black text-amber-500 tracking-tight">{res.launchDate.toISOString().slice(11, 19)}</span>
-                </div>
-                <div className="flex justify-between text-[10px] text-slate-400 font-medium">
-                   <span className="flex items-center gap-1"><Zap className="w-2.5 h-2.5 text-slate-600"/> {res.unitName}</span>
-                   <span>{formatSeconds(res.travelTimeSeconds)} travel</span>
-                </div>
-                <div className="text-[9px] text-slate-600 font-mono mt-1 flex justify-between uppercase">
-                  <span>Src: ({res.startX}|{res.startY})</span>
-                  <span>Dist: {res.distance}</span>
+                )}
+                <div className="divide-y divide-slate-700/50">
+                  {group.items.map((res, i) => (
+                    <div key={res.id} className="p-4 hover:bg-slate-700/30 transition-all border-l-4 border-l-transparent hover:border-l-amber-500 flex flex-col gap-1">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 flex items-center justify-center bg-slate-900 rounded-full text-[9px] font-black text-amber-500 border border-slate-700">{i + 1}</span>
+                          <span className="text-sm font-bold text-white truncate max-w-[120px]">{res.label}</span>
+                        </div>
+                        <span className="text-xl font-mono font-black text-amber-500 tracking-tight">{res.launchDate.toISOString().slice(11, 19)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                        <span className="flex items-center gap-1"><Zap className="w-2.5 h-2.5 text-slate-600"/> {res.unitName}</span>
+                        <span>{formatSeconds(res.travelTimeSeconds)} travel</span>
+                      </div>
+                      <div className="text-[9px] text-slate-600 font-mono mt-1 flex justify-between uppercase">
+                        <span>Src: ({res.startX}|{res.startY})</span>
+                        <span>Dist: {res.distance}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -333,7 +395,7 @@ export const AttackCoordinator: React.FC = () => {
               <li>• Launch times are sorted chronologically (UTC).</li>
               <li>• Distance assumes a 401x401 toroidal map wrap.</li>
               <li>• Level 20 TS provides 500% speed after 20 tiles.</li>
-              <li>• Always hit "Recalculate" after bulk coordinate edits.</li>
+              <li>• Grouping helps manage complex wave operations.</li>
             </ul>
           </div>
         </div>
