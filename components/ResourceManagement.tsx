@@ -102,6 +102,15 @@ export const ResourceManagement: React.FC = () => {
     }
   };
 
+  const handleBwdPercentageChange = (idx: number, value: number) => {
+    const othersSum = bwdSelections.reduce((sum, s, i) => i === idx ? sum : sum + s.percentage, 0);
+    const cappedValue = Math.min(value, 100 - othersSum);
+    
+    setBwdSelections(bwdSelections.map((s, i) => 
+      i === idx ? { ...s, percentage: cappedValue } : s
+    ));
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Forward Section */}
@@ -132,10 +141,10 @@ export const ResourceManagement: React.FC = () => {
         </div>
       </section>
 
-      {/* Backward Section */}
+      {/* Backwards Section */}
       <section className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl space-y-6">
         <div className="flex items-center justify-between border-b border-slate-700 pb-4">
-          <h2 className="text-xl font-bold flex items-center gap-2"><PieChart className="text-amber-500"/> Backward</h2>
+          <h2 className="text-xl font-bold flex items-center gap-2"><PieChart className="text-amber-500"/> Backwards</h2>
           <select value={bwdTribe} onChange={e => setBwdTribe(e.target.value as TribeName)} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-amber-500 font-bold">
             {TRIBES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -156,14 +165,27 @@ export const ResourceManagement: React.FC = () => {
         </div>
 
         <div className="space-y-3">
+          <div className="flex justify-between items-center px-1">
+             <span className="text-[10px] font-black text-slate-500 uppercase">Resource Allocation</span>
+             <span className={`text-[10px] font-black uppercase ${bwdSelections.reduce((s, x) => s + x.percentage, 0) === 100 ? 'text-green-500' : 'text-amber-500'}`}>
+                Total: {bwdSelections.reduce((s, x) => s + x.percentage, 0)}% / 100%
+             </span>
+          </div>
           {bwdSelections.map((sel, idx) => (
-            <div key={idx} className="flex gap-4 bg-slate-900/40 p-3 rounded-lg border border-slate-700">
-              <select value={sel.unitName} onChange={e => setBwdSelections(bwdSelections.map((s, i) => i === idx ? {...s, unitName: e.target.value} : s))} className="flex-grow bg-slate-900 rounded px-2 text-sm">
+            <div key={idx} className="flex gap-4 bg-slate-900/40 p-3 rounded-lg border border-slate-700 items-center">
+              <select value={sel.unitName} onChange={e => setBwdSelections(bwdSelections.map((s, i) => i === idx ? {...s, unitName: e.target.value} : s))} className="flex-grow bg-slate-900 rounded px-2 py-1.5 text-sm">
                 <option value="">-- Unit --</option>
                 {filteredBwdUnits.map(u => <option key={u.unit} value={u.unit}>{u.unit}</option>)}
               </select>
-              <input type="range" min="0" max="100" value={sel.percentage} onChange={e => setBwdSelections(bwdSelections.map((s, i) => i === idx ? {...s, percentage: Number(e.target.value)} : s))} className="w-24 accent-amber-500"/>
-              <span className="text-xs font-mono w-8">{sel.percentage}%</span>
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={sel.percentage} 
+                onChange={e => handleBwdPercentageChange(idx, Number(e.target.value))} 
+                className="w-24 accent-amber-500"
+              />
+              <span className="text-xs font-mono w-10 text-right">{sel.percentage}%</span>
             </div>
           ))}
         </div>
@@ -180,7 +202,7 @@ export const ResourceManagement: React.FC = () => {
               disabled={!bwdResults.standard.some(r => r.count > 0)}
               className="mt-4 w-full py-1.5 px-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 rounded text-[10px] font-bold uppercase tracking-widest text-slate-300 flex items-center justify-center gap-2 transition-all"
             >
-              <ArrowUpRight className="w-3 h-3"/> Send to Forward
+              <ArrowUpRight className="w-3 h-3"/> Send to Forward planning
             </button>
           </div>
 
@@ -196,7 +218,7 @@ export const ResourceManagement: React.FC = () => {
               disabled={!bwdResults.gold.some(r => r.count > 0)}
               className="w-full py-1.5 px-3 bg-amber-600/20 hover:bg-amber-600/40 disabled:opacity-50 disabled:cursor-not-allowed border border-amber-500/30 rounded text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center justify-center gap-2 transition-all"
             >
-              <ArrowUpRight className="w-3 h-3"/> Send to Forward
+              <ArrowUpRight className="w-3 h-3"/> Send to Forward planning
             </button>
           </div>
         </div>
