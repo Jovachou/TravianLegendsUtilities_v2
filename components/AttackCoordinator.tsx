@@ -172,7 +172,7 @@ export const AttackCoordinator: React.FC = () => {
 
       if (groupBy === 'target') {
         key = `${m.endX}|${m.endY}`;
-        label = `Castle: ${key}`;
+        label = `Target: ${key}`;
       } else if (groupBy === 'time') {
         const dateStr = m.launchDate.toISOString();
         key = dateStr.slice(0, 13);
@@ -207,7 +207,7 @@ export const AttackCoordinator: React.FC = () => {
               <Sword className="w-8 h-8" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Siege Coordinator</h2>
+              <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Attack Coordinator</h2>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Toroidal Matrix Enabled</span>
                 {lastCalculated && (
@@ -273,7 +273,7 @@ export const AttackCoordinator: React.FC = () => {
                   <div className="space-y-3">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mission Label</label>
                     <input type="text" value={m.label} onChange={e => updateMission(m.id, { label: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white focus:border-amber-500/50 outline-none" placeholder="Target Name"/>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Allegiance</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Tribe</label>
                     <select value={m.tribe} onChange={e => updateMission(m.id, { tribe: e.target.value as TribeName })} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-amber-500 font-bold outline-none cursor-pointer">
                       {TRIBES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
@@ -284,7 +284,7 @@ export const AttackCoordinator: React.FC = () => {
                       {TROOP_DATA.filter(u => u.tribe === m.tribe).map(u => <option key={u.unit} value={u.unit}>{u.unit}</option>)}
                     </select>
                     <div className="flex justify-between items-center mt-2 mb-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Square Lvl</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tournament Square Lvl</label>
                       <span className="text-amber-500 font-mono text-xs">{m.tsLevel}</span>
                     </div>
                     <input type="range" min="0" max="20" value={m.tsLevel} onChange={e => updateMission(m.id, { tsLevel: Number(e.target.value) })} className="w-full accent-amber-500 cursor-pointer"/>
@@ -298,7 +298,7 @@ export const AttackCoordinator: React.FC = () => {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1 mb-1"><Target className="w-2.5 h-2.5"/> Castle (X|Y)</label>
+                      <label className="block text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1 mb-1"><Target className="w-2.5 h-2.5"/> Target (X|Y)</label>
                       <div className="flex gap-2">
                         <input type="text" value={m.endX} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'endX', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none focus:border-red-500/50"/>
                         <input type="text" value={m.endY} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'endY', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none focus:border-red-500/50"/>
