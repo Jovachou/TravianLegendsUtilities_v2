@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { TribeName, ResourceInput, UnitData } from '../types';
-import { Calculator, PieChart, Info, Wheat, Plus, Trash2, Coins, Zap, Box, ArrowUpRight, Scroll } from 'lucide-react';
+import { Calculator, PieChart, Info, Wheat, Plus, Trash2, Coins, Zap, Box, ArrowUpRight } from 'lucide-react';
 
 interface FwdItem {
   id: string;
@@ -112,83 +112,69 @@ export const ResourceManagement: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-500">
       {/* Forward Section */}
-      <section className="bg-stone-900 p-8 rounded border-2 border-stone-800 shadow-[0_10px_40px_rgba(0,0,0,0.6)] space-y-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5">
-          <Scroll className="w-32 h-32" />
-        </div>
-        
-        <div className="flex items-center justify-between border-b-2 border-amber-900/30 pb-4 relative z-10">
-          <h2 className="text-2xl font-bold tracking-widest flex items-center gap-3 uppercase text-stone-100"><Calculator className="text-amber-700 w-6 h-6"/> Strategic Levy</h2>
-          <select value={fwdTribe} onChange={e => setFwdTribe(e.target.value as TribeName)} className="bg-stone-950 border border-amber-900/50 rounded px-4 py-2 text-amber-600 font-bold uppercase text-xs tracking-widest cursor-pointer hover:border-amber-700 transition-colors outline-none">
+      <section className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl space-y-6">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+          <h2 className="text-xl font-bold flex items-center gap-2 text-white"><Calculator className="text-amber-500 w-5 h-5"/> Forward Planning</h2>
+          <select value={fwdTribe} onChange={e => setFwdTribe(e.target.value as TribeName)} className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-amber-500 font-bold text-xs uppercase outline-none">
             {TRIBES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
-
-        <div className="space-y-4 max-h-[350px] overflow-y-auto pr-4 custom-scrollbar relative z-10">
+        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
           {fwdItems.map(item => (
-            <div key={item.id} className="flex gap-4 bg-stone-950/60 p-4 rounded border border-stone-800 group hover:border-amber-900/50 transition-all">
-              <select value={item.unitName} onChange={e => setFwdItems(fwdItems.map(i => i.id === item.id ? {...i, unitName: e.target.value} : i))} className="flex-grow bg-transparent text-stone-300 font-serif outline-none appearance-none cursor-pointer">
+            <div key={item.id} className="flex gap-3 bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-slate-700 transition-colors">
+              <select value={item.unitName} onChange={e => setFwdItems(fwdItems.map(i => i.id === item.id ? {...i, unitName: e.target.value} : i))} className="flex-grow bg-transparent text-slate-200 text-sm outline-none">
                 {filteredFwdUnits.map(u => <option key={u.unit} value={u.unit}>{u.unit}</option>)}
               </select>
-              <input type="number" value={item.amount} onChange={e => setFwdItems(fwdItems.map(i => i.id === item.id ? {...i, amount: Number(e.target.value)} : i))} className="w-28 bg-stone-900 border border-stone-800 rounded px-3 py-1 text-sm font-mono text-amber-500 text-right outline-none focus:border-amber-700"/>
-              <button onClick={() => setFwdItems(fwdItems.filter(i => i.id !== item.id))} className="text-stone-700 hover:text-red-900 transition-colors"><Trash2 className="w-4 h-4"/></button>
+              <input type="number" value={item.amount} onChange={e => setFwdItems(fwdItems.map(i => i.id === item.id ? {...i, amount: Number(e.target.value)} : i))} className="w-24 bg-slate-900 rounded px-2 py-1 text-sm font-mono text-amber-500 outline-none focus:ring-1 focus:ring-amber-500"/>
+              <button onClick={() => setFwdItems(fwdItems.filter(i => i.id !== item.id))} className="text-slate-600 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4"/></button>
             </div>
           ))}
-          <button onClick={() => setFwdItems([...fwdItems, {id: Math.random().toString(36).substr(2,9), unitName: filteredFwdUnits[0]?.unit || '', amount: 100}])} className="w-full py-3 border-2 border-dashed border-stone-800 rounded text-stone-600 hover:border-amber-900/50 hover:text-amber-700 text-[10px] font-black uppercase tracking-[0.2em] transition-all bg-stone-950/20">Expand Battalion</button>
+          <button onClick={() => setFwdItems([...fwdItems, {id: Math.random().toString(36).substr(2,9), unitName: filteredFwdUnits[0]?.unit || '', amount: 100}])} className="w-full py-2 border-2 border-dashed border-slate-800 rounded-lg text-slate-600 hover:border-amber-500/50 hover:text-amber-500 text-xs font-bold uppercase tracking-widest transition-all">Add Battalion</button>
         </div>
-
-        <div className="bg-stone-950 p-6 rounded border border-stone-800 shadow-inner grid grid-cols-2 gap-6 relative z-10">
-          <div className="space-y-4">
-             <div className="flex justify-between items-center"><span className="text-[10px] uppercase text-stone-500 font-bold tracking-widest">Lumber</span><span className="font-mono text-lg text-orange-800">{fwdResults.wood.toLocaleString()}</span></div>
-             <div className="flex justify-between items-center"><span className="text-[10px] uppercase text-stone-500 font-bold tracking-widest">Clay</span><span className="font-mono text-lg text-red-900">{fwdResults.clay.toLocaleString()}</span></div>
-          </div>
-          <div className="space-y-4">
-             <div className="flex justify-between items-center"><span className="text-[10px] uppercase text-stone-500 font-bold tracking-widest">Iron</span><span className="font-mono text-lg text-stone-400">{fwdResults.iron.toLocaleString()}</span></div>
-             <div className="flex justify-between items-center"><span className="text-[10px] uppercase text-stone-500 font-bold tracking-widest">Crop</span><span className="font-mono text-lg text-emerald-900">{fwdResults.crop.toLocaleString()}</span></div>
-          </div>
-          <div className="col-span-2 pt-4 border-t border-stone-800 flex justify-between items-center">
-            <span className="text-xs uppercase text-amber-700 font-black tracking-[0.2em]">Total Tributes</span>
-            <span className="font-mono text-2xl text-stone-100">{fwdResults.sum.toLocaleString()}</span>
-          </div>
+        <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-4 shadow-inner">
+          <div className="text-center"><span className="block text-[10px] uppercase text-orange-400 font-bold mb-1">Wood</span><span className="font-mono text-white">{fwdResults.wood.toLocaleString()}</span></div>
+          <div className="text-center"><span className="block text-[10px] uppercase text-red-400 font-bold mb-1">Clay</span><span className="font-mono text-white">{fwdResults.clay.toLocaleString()}</span></div>
+          <div className="text-center"><span className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Iron</span><span className="font-mono text-white">{fwdResults.iron.toLocaleString()}</span></div>
+          <div className="text-center"><span className="block text-[10px] uppercase text-green-400 font-bold mb-1">Crop</span><span className="font-mono text-white">{fwdResults.crop.toLocaleString()}</span></div>
         </div>
       </section>
 
       {/* Backwards Section */}
-      <section className="bg-stone-900 p-8 rounded border-2 border-stone-800 shadow-[0_10px_40px_rgba(0,0,0,0.6)] space-y-8 relative overflow-hidden">
-        <div className="flex items-center justify-between border-b-2 border-amber-900/30 pb-4">
-          <h2 className="text-2xl font-bold tracking-widest flex items-center gap-3 uppercase text-stone-100"><PieChart className="text-amber-700 w-6 h-6"/> Backwards</h2>
-          <select value={bwdTribe} onChange={e => setBwdTribe(e.target.value as TribeName)} className="bg-stone-950 border border-amber-900/50 rounded px-4 py-2 text-amber-600 font-bold uppercase text-xs tracking-widest cursor-pointer outline-none">
+      <section className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl space-y-6">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+          <h2 className="text-xl font-bold flex items-center gap-2 text-white"><PieChart className="text-amber-500 w-5 h-5"/> Backwards Planning</h2>
+          <select value={bwdTribe} onChange={e => setBwdTribe(e.target.value as TribeName)} className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-amber-500 font-bold text-xs uppercase outline-none">
             {TRIBES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
 
-        <div className="bg-stone-950/60 p-6 rounded border border-stone-800 space-y-6">
-          <h3 className="text-[10px] font-black text-stone-500 uppercase flex items-center gap-2 tracking-[0.2em]"><Box className="w-3 h-3 text-amber-700"/> Treasury Contents</h3>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-1"><label className="text-[10px] font-bold text-stone-600 block uppercase tracking-widest">Lumber</label><input type="number" value={bwdResources.wood} onChange={e => setBwdResources({...bwdResources, wood: Number(e.target.value)})} className="w-full bg-stone-900 border border-stone-800 rounded px-3 py-2 text-sm font-mono text-stone-300 outline-none focus:border-amber-900/50"/></div>
-            <div className="space-y-1"><label className="text-[10px] font-bold text-stone-600 block uppercase tracking-widest">Clay</label><input type="number" value={bwdResources.clay} onChange={e => setBwdResources({...bwdResources, clay: Number(e.target.value)})} className="w-full bg-stone-900 border border-stone-800 rounded px-3 py-2 text-sm font-mono text-stone-300 outline-none focus:border-amber-900/50"/></div>
-            <div className="space-y-1"><label className="text-[10px] font-bold text-stone-600 block uppercase tracking-widest">Iron</label><input type="number" value={bwdResources.iron} onChange={e => setBwdResources({...bwdResources, iron: Number(e.target.value)})} className="w-full bg-stone-900 border border-stone-800 rounded px-3 py-2 text-sm font-mono text-stone-300 outline-none focus:border-amber-900/50"/></div>
-            <div className="space-y-1"><label className="text-[10px] font-bold text-stone-600 block uppercase tracking-widest">Crop</label><input type="number" value={bwdResources.crop} onChange={e => setBwdResources({...bwdResources, crop: Number(e.target.value)})} className="w-full bg-stone-900 border border-stone-800 rounded px-3 py-2 text-sm font-mono text-stone-300 outline-none focus:border-amber-900/50"/></div>
-          </div>
-          <div className="pt-4 border-t border-stone-800">
-            <label className="text-[10px] font-bold text-emerald-900 block uppercase tracking-widest mb-1">Garrison Upkeep (Hourly)</label>
-            <input type="number" value={bwdCropConsumption} onChange={e => setBwdCropConsumption(Number(e.target.value))} className="w-full bg-stone-900 border border-stone-800 rounded px-3 py-2 text-sm font-mono text-stone-400 outline-none"/>
+        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-4 shadow-inner">
+          <h3 className="text-xs font-black text-slate-500 uppercase flex items-center gap-2"><Box className="w-3 h-3 text-amber-500"/> Treasure Pool</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="text-[10px] font-bold text-orange-400 block uppercase mb-1">Wood</label><input type="number" value={bwdResources.wood} onChange={e => setBwdResources({...bwdResources, wood: Number(e.target.value)})} className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-200 font-mono outline-none focus:ring-1 focus:ring-amber-500"/></div>
+            <div><label className="text-[10px] font-bold text-red-400 block uppercase mb-1">Clay</label><input type="number" value={bwdResources.clay} onChange={e => setBwdResources({...bwdResources, clay: Number(e.target.value)})} className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-200 font-mono outline-none focus:ring-1 focus:ring-amber-500"/></div>
+            <div><label className="text-[10px] font-bold text-slate-400 block uppercase mb-1">Iron</label><input type="number" value={bwdResources.iron} onChange={e => setBwdResources({...bwdResources, iron: Number(e.target.value)})} className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-200 font-mono outline-none focus:ring-1 focus:ring-amber-500"/></div>
+            <div><label className="text-[10px] font-bold text-green-400 block uppercase mb-1">Crop</label><input type="number" value={bwdResources.crop} onChange={e => setBwdResources({...bwdResources, crop: Number(e.target.value)})} className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-200 font-mono outline-none focus:ring-1 focus:ring-amber-500"/></div>
+            <div className="col-span-2 pt-2 border-t border-slate-800">
+              <label className="text-[10px] font-bold text-green-500 block uppercase mb-1">Hourly Garrison Upkeep</label>
+              <input type="number" value={bwdCropConsumption} onChange={e => setBwdCropConsumption(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-400 font-mono outline-none"/>
+            </div>
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex justify-between items-center px-1">
-             <span className="text-[10px] font-black text-stone-600 uppercase tracking-widest">Council Allocation</span>
-             <span className={`text-[10px] font-black uppercase tracking-widest ${bwdSelections.reduce((s, x) => s + x.percentage, 0) === 100 ? 'text-emerald-700' : 'text-amber-700'}`}>
+             <span className="text-[10px] font-black text-slate-500 uppercase">Allocation Ratio</span>
+             <span className={`text-[10px] font-black uppercase ${bwdSelections.reduce((s, x) => s + x.percentage, 0) === 100 ? 'text-green-500' : 'text-amber-500'}`}>
                 {bwdSelections.reduce((s, x) => s + x.percentage, 0)}% / 100%
              </span>
           </div>
           {bwdSelections.map((sel, idx) => (
-            <div key={idx} className="flex gap-4 bg-stone-950/40 p-4 rounded border border-stone-800 items-center">
-              <select value={sel.unitName} onChange={e => setBwdSelections(bwdSelections.map((s, i) => i === idx ? {...s, unitName: e.target.value} : s))} className="flex-grow bg-transparent text-stone-300 font-serif outline-none cursor-pointer">
-                <option value="">-- Summon Troop --</option>
+            <div key={idx} className="flex gap-4 bg-slate-950 p-3 rounded-lg border border-slate-800 items-center hover:border-slate-700 transition-colors">
+              <select value={sel.unitName} onChange={e => setBwdSelections(bwdSelections.map((s, i) => i === idx ? {...s, unitName: e.target.value} : s))} className="flex-grow bg-transparent text-slate-200 text-sm outline-none">
+                <option value="">-- Select Unit --</option>
                 {filteredBwdUnits.map(u => <option key={u.unit} value={u.unit}>{u.unit}</option>)}
               </select>
               <input 
@@ -197,52 +183,52 @@ export const ResourceManagement: React.FC = () => {
                 max="100" 
                 value={sel.percentage} 
                 onChange={e => handleBwdPercentageChange(idx, Number(e.target.value))} 
-                className="w-32 accent-amber-800"
+                className="w-24 accent-amber-500"
               />
-              <span className="text-xs font-mono w-12 text-right text-stone-400">{sel.percentage}%</span>
+              <span className="text-xs font-mono w-10 text-right text-slate-400">{sel.percentage}%</span>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-          <div className="bg-stone-950 p-6 rounded border border-stone-800 flex flex-col shadow-inner">
-            <div className="flex-grow space-y-3">
-              <h4 className="text-[10px] font-black text-stone-500 uppercase flex items-center gap-1 mb-4 tracking-widest border-b border-stone-800 pb-2"><Zap className="w-3 h-3 text-amber-700"/> Standard Build</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex flex-col shadow-inner">
+            <div className="flex-grow space-y-2">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 mb-2 tracking-widest"><Zap className="w-3 h-3 text-amber-500"/> Standard Build</h4>
               {bwdResults.standard.map((r, i) => r.unitName && (
-                <div key={i} className="flex justify-between text-xs font-serif italic border-b border-stone-900/50 pb-1">
-                  <span className="text-stone-400">{r.unitName}</span>
-                  <span className="text-stone-100 font-mono">{r.count.toLocaleString()}</span>
+                <div key={i} className="flex justify-between text-xs font-mono border-b border-slate-900 pb-1">
+                  <span className="text-slate-400">{r.unitName}</span>
+                  <span className="text-slate-100">{r.count.toLocaleString()}</span>
                 </div>
               ))}
-              {!bwdResults.standard.some(r => r.unitName) && <div className="text-[10px] text-stone-700 italic">No troops summoned...</div>}
+              {!bwdResults.standard.some(r => r.unitName) && <div className="text-[10px] text-slate-700 italic">No selection...</div>}
             </div>
             <button 
               onClick={() => sendToForward(bwdResults.standard)}
               disabled={!bwdResults.standard.some(r => r.count > 0)}
-              className="mt-6 w-full py-3 bg-stone-800 hover:bg-stone-700 disabled:opacity-30 disabled:cursor-not-allowed border border-stone-700 rounded text-[10px] font-black uppercase tracking-[0.2em] text-stone-300 flex items-center justify-center gap-2 transition-all shadow-md active:translate-y-0.5"
+              className="mt-4 w-full py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 rounded text-[10px] font-bold uppercase tracking-widest text-slate-300 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
             >
-              <ArrowUpRight className="w-3 h-3"/> Commit to Ledger
+              <ArrowUpRight className="w-3 h-3"/> Commit to Forward
             </button>
           </div>
 
-          <div className="bg-amber-950/5 p-6 rounded border border-amber-900/20 flex flex-col shadow-inner">
-            <div className="flex-grow space-y-3">
-              <h4 className="text-[10px] font-black text-amber-700 uppercase flex items-center gap-1 mb-4 tracking-widest border-b border-amber-900/10 pb-2"><Coins className="w-3 h-3"/> Gold Exchange</h4>
+          <div className="bg-amber-500/5 p-4 rounded-lg border border-amber-500/20 flex flex-col shadow-inner">
+            <div className="flex-grow space-y-2">
+              <h4 className="text-[10px] font-black text-amber-500 uppercase flex items-center gap-1 mb-2 tracking-widest"><Coins className="w-3 h-3"/> Gold Exchange</h4>
               {bwdResults.gold.map((r, i) => r.unitName && (
-                <div key={i} className="flex justify-between text-xs font-serif italic border-b border-amber-900/5 pb-1 text-amber-200/80">
+                <div key={i} className="flex justify-between text-xs font-mono text-amber-200/80 border-b border-amber-500/10 pb-1">
                   <span>{r.unitName}</span>
-                  <span className="font-bold text-amber-600 font-mono">{r.count.toLocaleString()}</span>
+                  <span className="font-bold text-amber-500">{r.count.toLocaleString()}</span>
                 </div>
               ))}
-              {!bwdResults.gold.some(r => r.unitName) && <div className="text-[10px] text-amber-900/30 italic text-center">Awaiting trade...</div>}
+              {!bwdResults.gold.some(r => r.unitName) && <div className="text-[10px] text-amber-800/40 italic">Awaiting gold...</div>}
             </div>
-            <div className="mt-4 mb-4 pt-2 border-t border-amber-900/10 text-[8px] text-amber-800 uppercase font-black text-right tracking-widest">Taxable Pool: {bwdResults.availableForGold.toLocaleString()}</div>
+            <div className="mt-2 mb-4 pt-2 border-t border-amber-500/10 text-[8px] text-amber-700 uppercase font-black text-right">NPC Pool: {bwdResults.availableForGold.toLocaleString()}</div>
             <button 
               onClick={() => sendToForward(bwdResults.gold)}
               disabled={!bwdResults.gold.some(r => r.count > 0)}
-              className="w-full py-3 bg-amber-900/20 hover:bg-amber-900/40 disabled:opacity-30 disabled:cursor-not-allowed border border-amber-900/30 rounded text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 flex items-center justify-center gap-2 transition-all shadow-md active:translate-y-0.5"
+              className="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed border border-amber-500/30 rounded text-[10px] font-bold uppercase tracking-widest text-amber-500 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
             >
-              <ArrowUpRight className="w-3 h-3"/> Commit to Ledger
+              <ArrowUpRight className="w-3 h-3"/> Commit to Forward
             </button>
           </div>
         </div>

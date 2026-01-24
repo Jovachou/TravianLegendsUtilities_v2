@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { TribeName } from '../types';
-import { Map, Clock, Target, Send, Plus, Trash2, ListOrdered, Calendar, Save, Download, Upload, Zap, Globe, RefreshCw, Info, Layers, Sword } from 'lucide-react';
+import { Map, Clock, Target, Plus, Trash2, ListOrdered, Save, Upload, Zap, Globe, RefreshCw, Layers, Sword } from 'lucide-react';
 
 interface AttackMission {
   id: string;
@@ -39,7 +39,7 @@ export const AttackCoordinator: React.FC = () => {
   const [missions, setMissions] = useState<AttackMission[]>([
     {
       id: Math.random().toString(36).substr(2, 9),
-      label: 'Garrison Alpha',
+      label: 'Main Siege Wave',
       tribe: 'Romans',
       unitName: 'Fire Catapult',
       tsLevel: 0,
@@ -115,7 +115,7 @@ export const AttackCoordinator: React.FC = () => {
 
   const handleSave = () => {
     localStorage.setItem('travian_attack_plan', JSON.stringify({ missions, targetTime }));
-    alert('War orders saved!');
+    alert('Orders Saved to Archives.');
   };
 
   const handleLoad = () => {
@@ -127,7 +127,7 @@ export const AttackCoordinator: React.FC = () => {
         setTargetTime(parsed.targetTime);
         handleRecalculate();
       } catch (e) {
-        console.error("Failed to load orders", e);
+        console.error("Recall failed", e);
       }
     }
   };
@@ -176,7 +176,7 @@ export const AttackCoordinator: React.FC = () => {
       } else if (groupBy === 'time') {
         const dateStr = m.launchDate.toISOString();
         key = dateStr.slice(0, 13);
-        label = `Hour of the ${m.launchDate.getUTCHours()}:00`;
+        label = `Hour ${m.launchDate.getUTCHours()}:00`;
       }
 
       if (!groups[key]) {
@@ -199,118 +199,121 @@ export const AttackCoordinator: React.FC = () => {
   };
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-700">
-      <div className="bg-stone-900 p-8 rounded border-2 border-stone-800 shadow-[0_20px_50px_rgba(0,0,0,0.7)]">
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
-          <div className="flex items-center gap-6">
-            <div className="bg-amber-900/10 p-4 rounded-full border border-amber-900/30">
-              <Sword className="text-amber-700 w-10 h-10" />
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-2xl">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-amber-500 shadow-inner">
+              <Sword className="w-8 h-8" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-stone-100 tracking-[0.1em] uppercase">Tactical Deployment</h2>
-              <div className="flex items-center gap-4 mt-2">
-                <p className="text-stone-500 text-xs uppercase tracking-widest italic">Toroidal Calculus Engine</p>
+              <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Siege Coordinator</h2>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Toroidal Matrix Enabled</span>
                 {lastCalculated && (
-                  <span className="text-[9px] text-emerald-800 font-black uppercase bg-emerald-900/10 px-3 py-1 rounded border border-emerald-900/20 tracking-widest">
-                    Synchronized: {lastCalculated}
+                  <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded">
+                    Sync: {lastCalculated}
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch gap-6 w-full xl:w-auto">
-            <div className="bg-stone-950 p-4 rounded border border-stone-800 flex-grow min-w-[160px] shadow-inner">
-              <label className="flex items-center gap-2 text-[10px] font-black text-stone-600 uppercase mb-2 tracking-[0.2em]">
-                <Clock className="w-3 h-3 text-amber-900" /> Current Epoch
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full xl:w-auto">
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner">
+              <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-widest">
+                <Clock className="w-3 h-3 text-amber-500" /> Current
               </label>
-              <div className="text-2xl font-mono font-black text-stone-300">
+              <div className="text-lg font-mono font-bold text-slate-300">
                 {now.toISOString().slice(11, 19)}
               </div>
             </div>
 
-            <div className="bg-stone-950 p-4 rounded border border-stone-800 flex-grow shadow-inner">
-              <label className="flex items-center gap-2 text-[10px] font-black text-amber-800 uppercase mb-2 tracking-[0.2em]">
-                <Globe className="w-3 h-3" /> Siege Arrival
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner">
+              <label className="flex items-center gap-2 text-[10px] font-bold text-amber-500 uppercase mb-1 tracking-widest">
+                <Globe className="w-3 h-3" /> Target Landing
               </label>
               <input 
                 type="datetime-local" 
                 step="1"
                 value={targetTime} 
                 onChange={(e) => setTargetTime(e.target.value)}
-                className="bg-transparent border-none text-stone-100 focus:ring-0 outline-none font-mono text-xl w-full cursor-pointer"
+                className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-lg w-full"
               />
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button 
                 onClick={handleRecalculate} 
                 disabled={isCalculating}
-                className={`px-6 py-2 bg-amber-800 hover:bg-amber-700 disabled:bg-stone-800 text-white rounded text-xs font-black uppercase tracking-[0.2em] border-b-4 border-amber-950 shadow-lg flex items-center justify-center transition-all ${isCalculating ? 'opacity-50' : 'active:translate-y-1 active:border-b-0'}`}
+                className="flex-grow flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 text-slate-950 px-4 rounded-lg font-bold uppercase text-xs shadow-lg active:scale-95 transition-all"
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isCalculating ? 'animate-spin' : ''}`} />
-                {isCalculating ? '...' : 'Deploy'}
+                <RefreshCw className={`w-4 h-4 ${isCalculating ? 'animate-spin' : ''}`} />
+                Recalculate
               </button>
-              <button onClick={handleSave} className="p-3 bg-stone-800 hover:bg-stone-700 rounded border border-stone-700 text-stone-400" title="Store Plans"><Save className="w-5 h-5" /></button>
-              <button onClick={handleLoad} className="p-3 bg-stone-800 hover:bg-stone-700 rounded border border-stone-700 text-stone-400" title="Recall Plans"><Upload className="w-5 h-5" /></button>
+              <button onClick={handleSave} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors shadow-md"><Save className="w-5 h-5" /></button>
+              <button onClick={handleLoad} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors shadow-md"><Upload className="w-5 h-5" /></button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
-        <div className="xl:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold flex items-center gap-3 text-stone-300 uppercase tracking-widest"><Target className="w-6 h-6 text-amber-700" /> Dispatch Orders</h3>
-            <button onClick={addMission} className="flex items-center gap-2 px-8 py-3 bg-stone-900 hover:bg-stone-800 text-stone-100 rounded border-2 border-stone-800 transition-all text-xs font-black uppercase tracking-[0.2em] shadow-lg active:scale-95"><Plus className="w-4 h-4" /> Recruit Garrison</button>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-bold flex items-center gap-2 text-white uppercase"><Target className="w-5 h-5 text-amber-500" /> Mission Orders</h3>
+            <button onClick={addMission} className="flex items-center gap-2 px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg border border-slate-700 transition-all text-xs font-bold uppercase active:scale-95"><Plus className="w-4 h-4" /> Add Mission</button>
           </div>
 
-          <div className="space-y-6 max-h-[1400px] overflow-y-auto pr-4 custom-scrollbar">
+          <div className="space-y-4 max-h-[800px] overflow-y-auto pr-2 custom-scrollbar">
             {missions.map((m) => (
-              <div key={m.id} className="bg-stone-900 p-8 rounded border-2 border-stone-800 shadow-[0_10px_30px_rgba(0,0,0,0.5)] relative group hover:border-amber-900/50 transition-colors">
-                <button onClick={() => removeMission(m.id)} className="absolute top-4 right-4 text-stone-700 hover:text-red-900 transition-colors"><Trash2 className="w-5 h-5" /></button>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                  <div className="space-y-4">
-                    <label className="block text-[10px] font-black text-stone-600 uppercase tracking-[0.2em]">Division Label</label>
-                    <input type="text" value={m.label} onChange={e => updateMission(m.id, { label: e.target.value })} className="w-full bg-stone-950 border border-stone-800 rounded px-4 py-2 text-sm text-stone-200 focus:border-amber-900/50 outline-none font-serif italic" placeholder="Fortress Name"/>
-                    <label className="block text-[10px] font-black text-stone-600 uppercase tracking-[0.2em]">Allegiance</label>
-                    <select value={m.tribe} onChange={e => updateMission(m.id, { tribe: e.target.value as TribeName })} className="w-full bg-stone-950 border border-stone-800 rounded px-4 py-2 text-sm text-amber-700 font-bold tracking-widest outline-none cursor-pointer">
+              <div key={m.id} className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-lg relative group hover:border-slate-700 transition-colors">
+                <button onClick={() => removeMission(m.id)} className="absolute top-4 right-4 text-slate-700 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mission Label</label>
+                    <input type="text" value={m.label} onChange={e => updateMission(m.id, { label: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white focus:border-amber-500/50 outline-none" placeholder="Target Name"/>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Allegiance</label>
+                    <select value={m.tribe} onChange={e => updateMission(m.id, { tribe: e.target.value as TribeName })} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-amber-500 font-bold outline-none cursor-pointer">
                       {TRIBES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
-                  <div className="space-y-4">
-                    <label className="block text-[10px] font-black text-stone-600 uppercase tracking-[0.2em]">Slowest Battalion</label>
-                    <select value={m.unitName} onChange={e => updateMission(m.id, { unitName: e.target.value })} className="w-full bg-stone-950 border border-stone-800 rounded px-4 py-2 text-sm text-stone-300 outline-none cursor-pointer">
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Slowest Unit</label>
+                    <select value={m.unitName} onChange={e => updateMission(m.id, { unitName: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-200 outline-none">
                       {TROOP_DATA.filter(u => u.tribe === m.tribe).map(u => <option key={u.unit} value={u.unit}>{u.unit}</option>)}
                     </select>
-                    <label className="block text-[10px] font-black text-stone-600 uppercase tracking-[0.2em] flex justify-between">Square Level <span className="text-amber-700">{m.tsLevel}</span></label>
-                    <input type="range" min="0" max="20" value={m.tsLevel} onChange={e => updateMission(m.id, { tsLevel: Number(e.target.value) })} className="w-full accent-amber-900 cursor-pointer"/>
+                    <div className="flex justify-between items-center mt-2 mb-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Square Lvl</label>
+                      <span className="text-amber-500 font-mono text-xs">{m.tsLevel}</span>
+                    </div>
+                    <input type="range" min="0" max="20" value={m.tsLevel} onChange={e => updateMission(m.id, { tsLevel: Number(e.target.value) })} className="w-full accent-amber-500 cursor-pointer"/>
                   </div>
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-black text-stone-600 uppercase tracking-[0.2em] flex items-center gap-1"><Map className="w-2.5 h-2.5"/> Source (X|Y)</label>
-                      <div className="flex gap-3 mt-1">
-                        <input type="text" value={m.startX} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'startX', e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded text-center py-2 text-sm font-mono text-stone-300 outline-none focus:border-amber-900/50"/>
-                        <input type="text" value={m.startY} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'startY', e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded text-center py-2 text-sm font-mono text-stone-300 outline-none focus:border-amber-900/50"/>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1 mb-1"><Map className="w-2.5 h-2.5"/> Source (X|Y)</label>
+                      <div className="flex gap-2">
+                        <input type="text" value={m.startX} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'startX', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none"/>
+                        <input type="text" value={m.startY} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'startY', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none"/>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black text-red-900 uppercase tracking-[0.2em] flex items-center gap-1"><Target className="w-2.5 h-2.5"/> Castle (X|Y)</label>
-                      <div className="flex gap-3 mt-1">
-                        <input type="text" value={m.endX} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'endX', e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded text-center py-2 text-sm font-mono text-stone-300 outline-none focus:border-red-900/50"/>
-                        <input type="text" value={m.endY} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'endY', e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded text-center py-2 text-sm font-mono text-stone-300 outline-none focus:border-red-900/50"/>
+                      <label className="block text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1 mb-1"><Target className="w-2.5 h-2.5"/> Castle (X|Y)</label>
+                      <div className="flex gap-2">
+                        <input type="text" value={m.endX} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'endX', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none focus:border-red-500/50"/>
+                        <input type="text" value={m.endY} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'endY', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none focus:border-red-500/50"/>
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-col justify-end">
-                    <div className="bg-stone-950/80 p-5 rounded border border-stone-800 space-y-4 shadow-inner min-w-[140px]">
-                      <div className="flex justify-between items-center text-[10px] font-black text-stone-600 uppercase tracking-widest">
+                    <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-3 shadow-inner min-w-[140px]">
+                      <div className="flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase">
                         <span>Leagues</span> 
-                        <span className="text-stone-300 font-mono">{calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY).toFixed(2)}</span>
+                        <span className="text-slate-300 font-mono">{calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY).toFixed(2)}</span>
                       </div>
-                      <div className="flex flex-col gap-1 border-t border-stone-800/50 pt-2">
-                        <span className="text-[10px] font-black text-stone-600 uppercase tracking-widest">Dispatch Time</span> 
-                        <span className="text-amber-700 font-mono font-black text-xl leading-none">
+                      <div className="flex flex-col gap-1 border-t border-slate-900 pt-2 overflow-hidden">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Dispatch Time</span> 
+                        <span className="text-amber-500 font-mono font-bold text-xl leading-none truncate">
                           {(() => {
                             const ad = parseAsUTC(targetTime);
                             if (isNaN(ad.getTime())) return '---';
@@ -329,57 +332,50 @@ export const AttackCoordinator: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold flex items-center gap-3 text-stone-300 uppercase tracking-widest"><ListOrdered className="w-6 h-6 text-amber-700" /> Dispatch List</h3>
-              {isCalculating && <span className="text-[10px] text-amber-700 font-black animate-pulse uppercase tracking-[0.3em]">Casting...</span>}
-            </div>
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3">
+            <h3 className="text-lg font-bold flex items-center gap-2 text-white uppercase"><ListOrdered className="w-5 h-5 text-amber-500" /> Wave Summary</h3>
             
-            <div className="flex items-center gap-3 bg-stone-950 p-2 rounded border border-stone-800 shadow-inner">
-              <label className="text-[10px] font-black text-stone-600 uppercase pl-3 flex items-center gap-2 tracking-widest">
-                <Layers className="w-3 h-3 text-amber-900"/> Grouped By:
+            <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-lg border border-slate-800 shadow-inner">
+              <label className="text-[10px] font-bold text-slate-600 uppercase pl-2 flex items-center gap-2 tracking-widest">
+                <Layers className="w-3 h-3"/> Group:
               </label>
               <select 
                 value={groupBy} 
                 onChange={(e) => setGroupBy(e.target.value as GroupByOption)}
-                className="bg-transparent border-none text-[10px] font-black text-amber-700 uppercase focus:ring-0 outline-none cursor-pointer tracking-widest"
+                className="bg-transparent border-none text-[10px] font-bold text-amber-500 uppercase focus:ring-0 outline-none cursor-pointer tracking-widest"
               >
-                <option value="none">Chronological</option>
-                <option value="target">Target Castle</option>
-                <option value="time">Epoch Window</option>
+                <option value="none">Timeline</option>
+                <option value="target">By Target</option>
+                <option value="time">By Hour</option>
               </select>
             </div>
           </div>
 
-          <div className="bg-stone-900 rounded border-2 border-stone-800 shadow-2xl overflow-hidden border-t-4 border-t-amber-800 max-h-[1200px] overflow-y-auto custom-scrollbar">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-xl overflow-hidden max-h-[700px] overflow-y-auto custom-scrollbar">
             {groupedMissions.length === 0 || (groupedMissions.length === 1 && groupedMissions[0].items.length === 0) ? (
-              <div className="p-12 text-center text-stone-700 italic text-sm font-serif">Awaiting orders from the high command...</div>
+              <div className="p-12 text-center text-slate-700 italic text-sm">Deployment waiting...</div>
             ) : groupedMissions.map((group) => (
-              <div key={group.key} className="border-b border-stone-800 last:border-0">
+              <div key={group.key} className="border-b border-slate-800 last:border-0">
                 {group.label && (
-                  <div className="bg-stone-950/90 px-6 py-3 border-y border-stone-800 flex justify-between items-center sticky top-0 z-10 backdrop-blur-md">
-                    <span className="text-[10px] font-black text-amber-800 uppercase tracking-[0.3em]">{group.label}</span>
-                    <span className="text-[9px] font-black text-stone-700 uppercase tracking-widest">{group.items.length} Units</span>
+                  <div className="bg-slate-950 px-4 py-2 border-y border-slate-800 flex justify-between items-center sticky top-0 z-10">
+                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">{group.label}</span>
+                    <span className="text-[9px] font-bold text-slate-700 uppercase">{group.items.length} units</span>
                   </div>
                 )}
-                <div className="divide-y divide-stone-800/40">
+                <div className="divide-y divide-slate-800/50">
                   {group.items.map((res, i) => (
-                    <div key={res.id} className="p-6 hover:bg-stone-800/50 transition-all border-l-4 border-l-transparent hover:border-l-amber-800 flex flex-col gap-3">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 flex items-center justify-center bg-stone-950 rounded border border-stone-800 text-[10px] font-black text-amber-700">{i + 1}</span>
-                          <span className="text-sm font-bold text-stone-200 tracking-wider font-serif italic">{res.label}</span>
+                    <div key={res.id} className="p-4 hover:bg-slate-800/40 transition-colors border-l-2 border-l-transparent hover:border-l-amber-500">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 flex items-center justify-center bg-slate-950 rounded text-[9px] font-bold text-amber-500 border border-slate-800">{i + 1}</span>
+                          <span className="text-sm font-bold text-white truncate max-w-[120px]">{res.label}</span>
                         </div>
-                        <span className="text-2xl font-mono font-black text-amber-700 tracking-tighter">{res.launchDate.toISOString().slice(11, 19)}</span>
+                        <span className="text-lg font-mono font-bold text-amber-500">{res.launchDate.toISOString().slice(11, 19)}</span>
                       </div>
-                      <div className="flex justify-between text-[10px] text-stone-500 font-bold uppercase tracking-widest">
-                        <span className="flex items-center gap-2"><Zap className="w-3 h-3 text-stone-700"/> {res.unitName}</span>
-                        <span>{formatSeconds(res.travelTimeSeconds)} Journey</span>
-                      </div>
-                      <div className="text-[10px] text-stone-700 font-mono mt-2 flex justify-between uppercase tracking-widest border-t border-stone-800/30 pt-2">
-                        <span>Origin: ({res.startX}|{res.startY})</span>
-                        <span>Leagues: {res.distance}</span>
+                      <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                        <span className="flex items-center gap-1"><Zap className="w-2.5 h-2.5"/> {res.unitName}</span>
+                        <span>{formatSeconds(res.travelTimeSeconds)} travel</span>
                       </div>
                     </div>
                   ))}
@@ -388,13 +384,13 @@ export const AttackCoordinator: React.FC = () => {
             ))}
           </div>
           
-          <div className="bg-stone-950/50 p-6 rounded border border-stone-800/50 shadow-inner">
-            <h4 className="text-[10px] font-black text-amber-900 uppercase tracking-[0.3em] mb-4 flex items-center gap-2 underline underline-offset-4 decoration-stone-800">Commander's Codex</h4>
-            <ul className="text-[11px] text-stone-600 space-y-3 leading-relaxed font-serif italic">
-              <li>• Times are recorded in the Universal Epoch (UTC).</li>
-              <li>• Distance is calculated based on the 401-League Infinite Wrap.</li>
-              <li>• Tournament Squares only provide speed benefits beyond the first 20 Leagues.</li>
-              <li>• Use Grouping to organize multi-wave siege operations.</li>
+          <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800/50 shadow-inner">
+            <h4 className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2 flex items-center gap-2">Briefing</h4>
+            <ul className="text-[10px] text-slate-600 space-y-1 font-medium leading-relaxed">
+              <li>• Times are UTC (Universal Epoch).</li>
+              <li>• Wrap Distance: 401 League Grid.</li>
+              <li>• TS benefit starts after 20 leagues.</li>
+              <li>• Launch on the clock for precise hits.</li>
             </ul>
           </div>
         </div>
