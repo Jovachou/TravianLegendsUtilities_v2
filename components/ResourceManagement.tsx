@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { TribeName, ResourceInput, UnitData } from '../types';
-import { Calculator, PieChart, Info, Wheat, Plus, Trash2, Coins, Zap, Box } from 'lucide-react';
+import { Calculator, PieChart, Info, Wheat, Plus, Trash2, Coins, Zap, Box, ArrowUpRight } from 'lucide-react';
 
 interface FwdItem {
   id: string;
@@ -86,6 +86,22 @@ export const ResourceManagement: React.FC = () => {
     return { standard, gold, availableForGold };
   }, [bwdResources, bwdSelections, bwdCropConsumption]);
 
+  const sendToForward = (results: { unitName: string; count: number }[]) => {
+    const items: FwdItem[] = results
+      .filter(r => r.count > 0)
+      .map(r => ({
+        id: Math.random().toString(36).substr(2, 9),
+        unitName: r.unitName,
+        amount: r.count
+      }));
+    
+    if (items.length > 0) {
+      setFwdTribe(bwdTribe);
+      setFwdItems(items);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Forward Section */}
@@ -106,7 +122,7 @@ export const ResourceManagement: React.FC = () => {
               <button onClick={() => setFwdItems(fwdItems.filter(i => i.id !== item.id))} className="text-slate-500 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>
             </div>
           ))}
-          <button onClick={() => setFwdItems([...fwdItems, {id: Math.random().toString(36).substr(2,9), unitName: filteredFwdUnits[0].unit, amount: 100}])} className="w-full py-2 border-2 border-dashed border-slate-700 rounded-lg text-slate-500 hover:border-amber-500 hover:text-amber-500 text-xs font-bold uppercase tracking-widest transition-all">Add Unit</button>
+          <button onClick={() => setFwdItems([...fwdItems, {id: Math.random().toString(36).substr(2,9), unitName: filteredFwdUnits[0]?.unit || '', amount: 100}])} className="w-full py-2 border-2 border-dashed border-slate-700 rounded-lg text-slate-500 hover:border-amber-500 hover:text-amber-500 text-xs font-bold uppercase tracking-widest transition-all">Add Unit</button>
         </div>
         <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="text-center"><span className="block text-[10px] uppercase text-orange-400 font-bold">Wood</span><span className="font-mono">{fwdResults.wood.toLocaleString()}</span></div>
@@ -153,14 +169,35 @@ export const ResourceManagement: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 space-y-2">
-            <h4 className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1"><Zap className="w-3 h-3"/> Standard Build</h4>
-            {bwdResults.standard.map((r, i) => r.unitName && <div key={i} className="flex justify-between text-xs font-mono"><span>{r.unitName}</span><span className="text-slate-100">{r.count.toLocaleString()}</span></div>)}
+          <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 flex flex-col">
+            <div className="flex-grow space-y-2">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1 mb-2"><Zap className="w-3 h-3"/> Standard Build</h4>
+              {bwdResults.standard.map((r, i) => r.unitName && <div key={i} className="flex justify-between text-xs font-mono"><span>{r.unitName}</span><span className="text-slate-100">{r.count.toLocaleString()}</span></div>)}
+              {!bwdResults.standard.some(r => r.unitName) && <div className="text-[10px] text-slate-600 italic">Select units above</div>}
+            </div>
+            <button 
+              onClick={() => sendToForward(bwdResults.standard)}
+              disabled={!bwdResults.standard.some(r => r.count > 0)}
+              className="mt-4 w-full py-1.5 px-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 rounded text-[10px] font-bold uppercase tracking-widest text-slate-300 flex items-center justify-center gap-2 transition-all"
+            >
+              <ArrowUpRight className="w-3 h-3"/> Send to Forward
+            </button>
           </div>
-          <div className="bg-amber-950/10 p-4 rounded-lg border border-amber-500/20 space-y-2">
-            <h4 className="text-[10px] font-black text-amber-500 uppercase flex items-center gap-1"><Coins className="w-3 h-3"/> Gold Use (NPC)</h4>
-            {bwdResults.gold.map((r, i) => r.unitName && <div key={i} className="flex justify-between text-xs font-mono text-amber-200"><span>{r.unitName}</span><span className="font-bold text-amber-400">{r.count.toLocaleString()}</span></div>)}
-            <div className="pt-2 border-t border-amber-500/10 text-[8px] text-amber-600 uppercase font-black text-right">Available Pool: {bwdResults.availableForGold.toLocaleString()}</div>
+
+          <div className="bg-amber-950/10 p-4 rounded-lg border border-amber-500/20 flex flex-col">
+            <div className="flex-grow space-y-2">
+              <h4 className="text-[10px] font-black text-amber-500 uppercase flex items-center gap-1 mb-2"><Coins className="w-3 h-3"/> Gold Use (NPC)</h4>
+              {bwdResults.gold.map((r, i) => r.unitName && <div key={i} className="flex justify-between text-xs font-mono text-amber-200"><span>{r.unitName}</span><span className="font-bold text-amber-400">{r.count.toLocaleString()}</span></div>)}
+              {!bwdResults.gold.some(r => r.unitName) && <div className="text-[10px] text-amber-800/60 italic">Select units above</div>}
+            </div>
+            <div className="mt-2 mb-4 pt-2 border-t border-amber-500/10 text-[8px] text-amber-600 uppercase font-black text-right">Pool: {bwdResults.availableForGold.toLocaleString()}</div>
+            <button 
+              onClick={() => sendToForward(bwdResults.gold)}
+              disabled={!bwdResults.gold.some(r => r.count > 0)}
+              className="w-full py-1.5 px-3 bg-amber-600/20 hover:bg-amber-600/40 disabled:opacity-50 disabled:cursor-not-allowed border border-amber-500/30 rounded text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center justify-center gap-2 transition-all"
+            >
+              <ArrowUpRight className="w-3 h-3"/> Send to Forward
+            </button>
           </div>
         </div>
       </section>
