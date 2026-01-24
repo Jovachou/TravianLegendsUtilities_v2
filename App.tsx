@@ -15,8 +15,8 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             <Shield className="w-10 h-10 text-amber-500" />
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-white uppercase">Travian Tactics</h1>
-              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest">Strategy & Command Suite</p>
+              <h1 className="text-2xl font-extrabold tracking-tight text-white uppercase">Travian Legends Utilities</h1>
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest">Strategic Command & Planning</p>
             </div>
           </div>
           
@@ -54,7 +54,7 @@ const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="bg-slate-950 py-6 px-4 text-center text-slate-500 text-[10px] uppercase tracking-widest border-t border-slate-900">
-        <p>&copy; 2024 Travian Tactics Utilities. Not affiliated with Travian Games GmbH.</p>
+        <p>&copy; 2024 Travian Legends Utilities. Not affiliated with Travian Games GmbH.</p>
       </footer>
     </div>
   );
