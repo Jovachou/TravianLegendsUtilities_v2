@@ -29,3 +29,10 @@ export interface UnitDistribution {
   unitName: string;
   percentage: number;
 }
+
+export interface UserVillage {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+}

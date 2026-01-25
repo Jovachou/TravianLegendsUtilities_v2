@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
-import { TribeName } from '../types';
-import { Map, Clock, Target, Plus, Trash2, ListOrdered, Save, Upload, Zap, Globe, RefreshCw, Layers, Sword } from 'lucide-react';
+import { TribeName, UserVillage } from '../types';
+import { Map, Clock, Target, Plus, Trash2, ListOrdered, Save, Upload, Zap, Globe, RefreshCw, Layers, Sword, ChevronDown } from 'lucide-react';
 
 interface AttackMission {
   id: string;
@@ -16,11 +16,15 @@ interface AttackMission {
   endY: number | string;
 }
 
+interface AttackCoordinatorProps {
+  userVillages: UserVillage[];
+}
+
 type GroupByOption = 'none' | 'target' | 'time';
 
 const MAP_SIZE = 401;
 
-export const AttackCoordinator: React.FC = () => {
+export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillages }) => {
   const [now, setNow] = useState(new Date());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -110,6 +114,13 @@ export const AttackCoordinator: React.FC = () => {
   const handleCoordChange = (id: string, field: keyof AttackMission, value: string) => {
     if (value === '' || value === '-' || /^-?\d*$/.test(value)) {
       updateMission(id, { [field]: value });
+    }
+  };
+
+  const selectUserVillage = (missionId: string, villageId: string) => {
+    const village = userVillages.find(v => v.id === villageId);
+    if (village) {
+      updateMission(missionId, { startX: village.x, startY: village.y });
     }
   };
 
@@ -291,7 +302,22 @@ export const AttackCoordinator: React.FC = () => {
                   </div>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1 mb-1"><Map className="w-2.5 h-2.5"/> Source (X|Y)</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1"><Map className="w-2.5 h-2.5"/> Source (X|Y)</label>
+                        {userVillages.length > 0 && (
+                          <div className="relative group/sel">
+                            <select 
+                              onChange={(e) => selectUserVillage(m.id, e.target.value)}
+                              className="appearance-none bg-slate-800/50 border border-slate-700/50 rounded-full px-2 py-0.5 text-[8px] font-bold text-amber-500 uppercase outline-none cursor-pointer hover:bg-slate-800 transition-colors"
+                            >
+                              <option value="">My Villages</option>
+                              {userVillages.map(v => (
+                                <option key={v.id} value={v.id}>{v.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <input type="text" value={m.startX} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'startX', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none"/>
                         <input type="text" value={m.startY} onFocus={e => e.target.select()} onChange={e => handleCoordChange(m.id, 'startY', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none"/>
