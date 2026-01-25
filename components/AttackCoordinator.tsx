@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { TribeName, UserVillage } from '../types';
-import { Map, Clock, Target, Plus, Trash2, ListOrdered, Save, Upload, Zap, Globe, RefreshCw, Layers, Sword, ChevronDown } from 'lucide-react';
+import { Map, Clock, Target, Plus, Trash2, ListOrdered, Save, Upload, Zap, Globe, RefreshCw, Layers, Sword, Share2, ExternalLink } from 'lucide-react';
 
 interface AttackMission {
   id: string;
@@ -31,11 +31,6 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
   const [lastCalculated, setLastCalculated] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<GroupByOption>('none');
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   const [targetTime, setTargetTime] = useState<string>(
     new Date(Date.now() + 3600000).toISOString().slice(0, 19)
   );
@@ -53,6 +48,29 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
       endY: 0
     }
   ]);
+
+  // Load from URL hash on mount
+  useEffect(() => {
+    const hash = window.location.hash.substring(1);
+    if (hash && hash.startsWith('plan=')) {
+      try {
+        const encodedData = hash.replace('plan=', '');
+        const decodedData = JSON.parse(atob(encodedData));
+        if (decodedData.missions && decodedData.targetTime) {
+          setMissions(decodedData.missions);
+          setTargetTime(decodedData.targetTime);
+          setLastCalculated("Imported from Link");
+        }
+      } catch (e) {
+        console.error("Failed to parse shared plan", e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const parseAsUTC = (val: string) => {
     if (!val) return new Date(NaN);
@@ -141,6 +159,17 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
         console.error("Recall failed", e);
       }
     }
+  };
+
+  const handleShareLink = () => {
+    const data = JSON.stringify({ missions, targetTime });
+    const encoded = btoa(data);
+    const url = new URL(window.location.href);
+    url.hash = `plan=${encoded}`;
+    
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      alert("Shareable Link copied to clipboard! Teammates opening this link will see your current plan.");
+    });
   };
 
   const calculatedMissions = useMemo(() => {
@@ -262,8 +291,11 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
                 <RefreshCw className={`w-4 h-4 ${isCalculating ? 'animate-spin' : ''}`} />
                 Recalculate
               </button>
-              <button onClick={handleSave} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors shadow-md"><Save className="w-5 h-5" /></button>
-              <button onClick={handleLoad} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors shadow-md"><Upload className="w-5 h-5" /></button>
+              <div className="flex gap-1">
+                <button onClick={handleSave} title="Save to local storage" className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors shadow-md"><Save className="w-5 h-5" /></button>
+                <button onClick={handleLoad} title="Load from local storage" className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors shadow-md"><Upload className="w-5 h-5" /></button>
+                <button onClick={handleShareLink} title="Generate Shareable URL" className="p-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg text-amber-500 transition-colors shadow-md"><Share2 className="w-5 h-5" /></button>
+              </div>
             </div>
           </div>
         </div>

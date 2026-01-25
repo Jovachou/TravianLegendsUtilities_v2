@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserVillage } from '../types';
-import { Home, Plus, Trash2, Save, Cloud, LogOut, Map, Info } from 'lucide-react';
+import { Home, Plus, Trash2, Save, Cloud, LogOut, Map, Info, Download, Upload } from 'lucide-react';
 
 interface ProfileManagerProps {
   isLoggedIn: boolean;
@@ -28,6 +28,43 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
 
   const removeVillage = (id: string) => {
     setVillages(villages.filter(v => v.id !== id));
+  };
+
+  const exportVillages = () => {
+    const data = JSON.stringify(villages, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `villages_export_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importVillages = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.Clarify;
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          try {
+            const imported = JSON.parse(re.target?.result as string);
+            if (Array.isArray(imported)) {
+              setVillages([...villages, ...imported.map(v => ({ ...v, id: Math.random().toString(36).substr(2, 9) }))]);
+              alert("Villages imported successfully!");
+            }
+          } catch (err) {
+            alert("Failed to import. Invalid JSON format.");
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
   };
 
   if (!isLoggedIn) {
@@ -146,7 +183,13 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
         <div className="md:col-span-2">
           <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
             <div className="bg-slate-950 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Database</span>
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Database</span>
+                <div className="flex gap-2">
+                  <button onClick={exportVillages} title="Export to File" className="text-slate-500 hover:text-amber-500 transition-colors"><Download className="w-3.5 h-3.5" /></button>
+                  <button onClick={importVillages} title="Import from File" className="text-slate-500 hover:text-amber-500 transition-colors"><Upload className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
               <span className="text-[10px] font-black text-amber-500 uppercase">{villages.length} Registered</span>
             </div>
             
@@ -168,6 +211,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
                     </div>
                   </div>
                   <button 
+                    // Fix: Fixed "Cannot find name 'id'" by using v.id from map context
                     onClick={() => removeVillage(v.id)}
                     className="p-2 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                   >
