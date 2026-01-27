@@ -2,12 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { ResourceManagement } from './components/ResourceManagement';
 import { AttackCoordinator } from './components/AttackCoordinator';
+import { DefenseCoordinator } from './components/DefenseCoordinator';
 import { ProfileManager } from './components/ProfileManager';
-import { Shield, Box, MapPin, User, LogIn } from 'lucide-react';
+import { Shield, Box, MapPin, User, LogIn, ShieldAlert } from 'lucide-react';
 import { UserVillage } from './types';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'resources' | 'attacks' | 'profile'>('resources');
+  const [activeTab, setActiveTab] = useState<'resources' | 'attacks' | 'defense' | 'profile'>('resources');
   const [villages, setVillages] = useState<UserVillage[]>(() => {
     const saved = localStorage.getItem('tl_user_villages');
     return saved ? JSON.parse(saved) : [];
@@ -42,7 +43,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex flex-col sm:flex-row items-center gap-3">
-            <nav className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+            <nav className="flex flex-wrap justify-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
               <button
                 onClick={() => setActiveTab('resources')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all text-xs font-bold uppercase ${
@@ -64,6 +65,17 @@ const App: React.FC = () => {
               >
                 <MapPin className="w-4 h-4" />
                 Attacks
+              </button>
+              <button
+                onClick={() => setActiveTab('defense')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all text-xs font-bold uppercase ${
+                  activeTab === 'defense' 
+                  ? 'bg-amber-500 text-slate-950 shadow-md' 
+                  : 'hover:bg-slate-900 text-slate-400'
+                }`}
+              >
+                <ShieldAlert className="w-4 h-4" />
+                Defense
               </button>
               <button
                 onClick={() => setActiveTab('profile')}
@@ -101,6 +113,7 @@ const App: React.FC = () => {
       <main className="flex-grow p-4 md:p-6 max-w-7xl mx-auto w-full">
         {activeTab === 'resources' && <ResourceManagement />}
         {activeTab === 'attacks' && <AttackCoordinator userVillages={villages} />}
+        {activeTab === 'defense' && <DefenseCoordinator userVillages={villages} />}
         {activeTab === 'profile' && (
           <ProfileManager 
             isLoggedIn={isLoggedIn} 

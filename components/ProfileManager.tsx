@@ -44,7 +44,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
   const importVillages = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.Clarify;
+    // Fix: Removed non-existent property access 'Clarify'
     input.accept = '.json';
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
@@ -211,7 +211,6 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
                     </div>
                   </div>
                   <button 
-                    // Fix: Fixed "Cannot find name 'id'" by using v.id from map context
                     onClick={() => removeVillage(v.id)}
                     className="p-2 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                   >
