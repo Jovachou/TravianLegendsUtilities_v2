@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { UserVillage } from '../types';
-import { Home, Plus, Trash2, Map, Info, Users, Activity, Loader2, Calendar, Shield } from 'lucide-react';
+import { Home, Plus, Trash2, Map, Info, Users, Activity, Loader2, Shield, AlertTriangle, Terminal, Copy, Check, Database } from 'lucide-react';
 
 interface ProfileManagerProps {
   villages: UserVillage[];
   refreshVillages: () => Promise<void>;
+  hasDbError?: boolean;
 }
 
 interface RegisteredUser {
@@ -16,12 +17,33 @@ interface RegisteredUser {
   updated_at: string;
 }
 
-export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refreshVillages }) => {
-  const [newVillage, setNewVillage] = useState({ name: '', x: '', y: '' });
+export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refreshVillages, hasDbError }) => {
+  const [newVillage, setNewVillage] = useState({ name: '', x: '', y: '', ts_level: 0 });
   const [isAdding, setIsAdding] = useState(false);
   const [users, setUsers] = useState<RegisteredUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [showRegistry, setShowRegistry] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const sqlSetup = `-- FIX FOR 'ts_level' ERROR: Run this in Supabase SQL Editor
+ALTER TABLE villages ADD COLUMN IF NOT EXISTS ts_level INTEGER DEFAULT 0;
+
+-- SETUP REGISTRY: Run this to enable the Commander Registry
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  display_name TEXT,
+  email TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
+CREATE POLICY "Public profiles are viewable by everyone" ON profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);`;
 
   useEffect(() => {
     if (showRegistry) {
@@ -41,7 +63,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
         setUsers(data);
       }
     } catch (e) {
-      console.log("Registry could not be loaded. Ensure 'profiles' table exists.");
+      console.log("Registry could not be loaded.");
     } finally {
       setLoadingUsers(false);
     }
@@ -55,17 +77,36 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
         .insert([{
           name: newVillage.name,
           x: Number(newVillage.x),
-          y: Number(newVillage.y)
+          y: Number(newVillage.y),
+          ts_level: newVillage.ts_level
         }]);
       
       if (!error) {
-        setNewVillage({ name: '', x: '', y: '' });
+        setNewVillage({ name: '', x: '', y: '', ts_level: 0 });
         await refreshVillages();
       } else {
-        alert(error.message);
+        // Specific error handling for the TS Level column
+        if (error.message.includes('ts_level')) {
+          alert("TACTICAL ERROR: The 'ts_level' column is missing from your database. Please use the 'Database Doctor' section below to fix it.");
+        } else {
+          alert("Database Error: " + error.message);
+        }
       }
       setIsAdding(false);
     }
+  };
+
+  const updateTsLevel = async (id: string, newLevel: number) => {
+    setUpdatingId(id);
+    const { error } = await supabase
+      .from('villages')
+      .update({ ts_level: newLevel })
+      .eq('id', id);
+    
+    if (!error) {
+      await refreshVillages();
+    }
+    setUpdatingId(null);
   };
 
   const removeVillage = async (id: string) => {
@@ -81,6 +122,12 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
     }
   };
 
+  const handleCopySql = () => {
+    navigator.clipboard.writeText(sqlSetup);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in duration-500 pb-20">
       <div className="flex justify-between items-center">
@@ -92,6 +139,50 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Cloud-synced tactical sectors</p>
         </div>
       </div>
+
+      {/* Database Doctor Section */}
+      {(hasDbError || villages.length === 0) && (
+        <div className="bg-slate-900 border border-amber-500/30 rounded-2xl overflow-hidden animate-in zoom-in-95 duration-500 shadow-2xl">
+           <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                 <div className="p-2 bg-amber-500/10 rounded-lg">
+                    <Database className="w-5 h-5 text-amber-500" />
+                 </div>
+                 <h3 className="text-sm font-black text-white uppercase">Database Doctor: Resolve Schema Mismatch</h3>
+              </div>
+              
+              <div className="flex flex-col md:flex-row gap-6">
+                 <div className="flex-grow space-y-3">
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Your Supabase database is missing the <span className="text-amber-500 font-bold">'ts_level'</span> column. This happens when the app adds new features that require more data storage.
+                    </p>
+                    <div className="bg-slate-950 rounded-xl border border-slate-800 p-4 relative group">
+                       <button 
+                         onClick={handleCopySql}
+                         className="absolute top-2 right-2 p-2 bg-slate-900 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-all border border-slate-800 flex items-center gap-2"
+                       >
+                         {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                         <span className="text-[8px] font-black uppercase">{copied ? 'Copied' : 'Copy Fix'}</span>
+                       </button>
+                       <pre className="text-[9px] font-mono text-slate-600 overflow-x-auto whitespace-pre custom-scrollbar max-h-[120px]">
+                         {sqlSetup}
+                       </pre>
+                    </div>
+                 </div>
+                 <div className="md:w-64 shrink-0 space-y-3">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">How to fix:</h4>
+                    <ol className="text-[10px] text-slate-400 space-y-2 list-decimal list-inside font-bold uppercase">
+                       <li>Click <span className="text-white">Copy Fix</span> above</li>
+                       <li>Go to your <span className="text-amber-500">Supabase SQL Editor</span></li>
+                       <li>Open a <span className="text-white">New Query</span> tab</li>
+                       <li>Paste & click <span className="text-white">Run</span></li>
+                       <li><span className="text-amber-500">Refresh</span> this page</li>
+                    </ol>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1 space-y-6">
@@ -130,6 +221,20 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
                   />
                 </div>
               </div>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">TS Level</label>
+                  <span className="text-amber-500 font-mono text-xs">{newVillage.ts_level}</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="20" 
+                  value={newVillage.ts_level} 
+                  onChange={e => setNewVillage({...newVillage, ts_level: Number(e.target.value)})}
+                  className="w-full accent-amber-500"
+                />
+              </div>
               <button 
                 onClick={addVillage}
                 disabled={isAdding}
@@ -137,15 +242,6 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
               >
                 {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Register Village'}
               </button>
-            </div>
-          </div>
-
-          <div className="bg-amber-500/5 p-4 rounded-xl border border-amber-500/20 shadow-inner">
-            <div className="flex items-start gap-3">
-              <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-[10px] text-amber-500/80 leading-relaxed font-bold uppercase tracking-tight">
-                Data saved here is encrypted and only accessible via your account.
-              </p>
             </div>
           </div>
         </div>
@@ -157,11 +253,11 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
               <span className="text-[10px] font-black text-amber-500 uppercase">{villages.length} Registered</span>
             </div>
             
-            <div className="divide-y divide-slate-800 max-h-[400px] overflow-y-auto custom-scrollbar">
+            <div className="divide-y divide-slate-800 max-h-[500px] overflow-y-auto custom-scrollbar">
               {villages.length === 0 ? (
-                <div className="p-12 text-center text-slate-700 italic text-sm">No villages registered in the cloud...</div>
+                <div className="p-12 text-center text-slate-700 italic text-sm">No villages registered...</div>
               ) : villages.map((v) => (
-                <div key={v.id} className="p-4 flex items-center justify-between hover:bg-slate-800/40 transition-colors group">
+                <div key={v.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-slate-800/40 transition-colors group gap-4">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center text-amber-500 group-hover:bg-amber-500 group-hover:text-slate-950 transition-colors">
                       <Map className="w-5 h-5" />
@@ -169,17 +265,33 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
                     <div>
                       <h4 className="text-sm font-bold text-white uppercase tracking-tight">{v.name}</h4>
                       <div className="flex gap-2 mt-0.5">
-                        <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Coord:</span>
-                        <span className="text-[10px] font-mono text-amber-500 font-bold">({v.x} | {v.y})</span>
+                        <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">({v.x} | {v.y})</span>
                       </div>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => removeVillage(v.id)}
-                    className="p-2 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+
+                  <div className="flex items-center gap-6">
+                    <div className="flex flex-col gap-1 min-w-[120px]">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[8px] font-black text-slate-600 uppercase">TS Level</span>
+                        <span className={`text-[10px] font-mono font-bold ${updatingId === v.id ? 'text-amber-500 animate-pulse' : 'text-slate-400'}`}>Lvl {v.ts_level}</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="20" 
+                        value={v.ts_level}
+                        onChange={(e) => updateTsLevel(v.id, Number(e.target.value))}
+                        className="accent-amber-500 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => removeVillage(v.id)}
+                      className="p-2 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -211,9 +323,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
                 <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
               </div>
             ) : users.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-xs text-slate-600 italic">No other registered users detected in 'profiles' table.</p>
-              </div>
+              <div className="p-8 text-center text-xs text-slate-600 italic">No other registered users detected.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left">

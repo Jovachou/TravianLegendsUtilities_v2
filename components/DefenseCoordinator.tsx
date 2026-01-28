@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { UserVillage, TribeName } from '../types';
-import { Map, Clock, Target, ShieldAlert, ShieldCheck, Globe, Zap, ListChecks } from 'lucide-react';
+import { Map, Clock, Target, ShieldAlert, ShieldCheck, Globe, Zap } from 'lucide-react';
 
 interface DefenseCoordinatorProps {
   userVillages: UserVillage[];
@@ -23,7 +23,6 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
     new Date(Date.now() + 3600000).toISOString().slice(0, 19)
   );
 
-  // Per-village settings
   const [villageSettings, setVillageSettings] = useState<Record<string, VillageSetting>>({});
 
   useEffect(() => {
@@ -31,16 +30,20 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
     return () => clearInterval(timer);
   }, []);
 
-  // Initialize settings for new villages
+  // Initialize settings from userVillages, prioritizing saved ts_level
   useEffect(() => {
     setVillageSettings(prev => {
       const next = { ...prev };
       userVillages.forEach(v => {
         if (!next[v.id]) {
           next[v.id] = {
-            tsLevel: 0,
+            tsLevel: v.ts_level, // Use the persistent value from DB
             tribe: 'Romans'
           };
+        } else {
+          // If the village already existed but its TS level was updated in DB, sync it here if it wasn't manually touched
+          // (Actually, simple overwrite for reliability if userVillages changes)
+          next[v.id].tsLevel = v.ts_level;
         }
       });
       return next;
@@ -59,13 +62,10 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
     const ny1 = Number(y1) || 0;
     const nx2 = Number(x2) || 0;
     const ny2 = Number(y2) || 0;
-
     let dx = Math.abs(nx1 - nx2);
     let dy = Math.abs(ny1 - ny2);
-    
     if (dx > MAP_SIZE / 2) dx = MAP_SIZE - dx;
     if (dy > MAP_SIZE / 2) dy = MAP_SIZE - dy;
-    
     return Math.sqrt(dx * dx + dy * dy);
   };
 
@@ -86,7 +86,7 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
     if (isNaN(arrivalLimit.getTime())) return [];
 
     return userVillages.map(v => {
-      const setting = villageSettings[v.id] || { tsLevel: 0, tribe: 'Romans' };
+      const setting = villageSettings[v.id] || { tsLevel: v.ts_level, tribe: 'Romans' };
       const tribeUnits = TROOP_DATA.filter(u => u.tribe === setting.tribe);
       const distance = calculateWrappedDistance(v.x, v.y, targetX, targetY);
       
@@ -121,7 +121,6 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Global Controls */}
       <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-2xl">
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
           <div className="flex items-center gap-4">
@@ -137,22 +136,12 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full xl:w-auto">
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner">
               <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-widest">
-                <Target className="w-3 h-3 text-emerald-500" /> Reinforcements Target (X|Y)
+                <Target className="w-3 h-3 text-emerald-500" /> Target (X|Y)
               </label>
               <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={targetX} 
-                  onChange={e => setTargetX(e.target.value)}
-                  className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-lg w-full text-center"
-                />
+                <input type="text" value={targetX} onChange={e => setTargetX(e.target.value)} className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-lg w-full text-center" />
                 <span className="text-slate-700">|</span>
-                <input 
-                  type="text" 
-                  value={targetY} 
-                  onChange={e => setTargetY(e.target.value)}
-                  className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-lg w-full text-center"
-                />
+                <input type="text" value={targetY} onChange={e => setTargetY(e.target.value)} className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-lg w-full text-center" />
               </div>
             </div>
 
@@ -160,32 +149,21 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
               <label className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase mb-1 tracking-widest">
                 <Clock className="w-3 h-3" /> Reinforce Before
               </label>
-              <input 
-                type="datetime-local" 
-                step="1"
-                value={targetTime} 
-                onChange={(e) => setTargetTime(e.target.value)}
-                className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-lg w-full"
-              />
+              <input type="datetime-local" step="1" value={targetTime} onChange={(e) => setTargetTime(e.target.value)} className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-lg w-full" />
             </div>
 
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner flex flex-col justify-center">
               <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-widest">Current Server Time</label>
-              <div className="text-lg font-mono font-bold text-slate-300">
-                {now.toISOString().slice(11, 19)}
-              </div>
+              <div className="text-lg font-mono font-bold text-slate-300">{now.toISOString().slice(11, 19)}</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Villages List */}
       {userVillages.length === 0 ? (
         <div className="bg-slate-900 p-12 rounded-xl border border-slate-800 text-center space-y-4">
-          <div className="inline-flex items-center justify-center p-4 bg-slate-950 rounded-full border border-slate-800">
-            <Globe className="w-8 h-8 text-slate-700" />
-          </div>
-          <p className="text-slate-400 font-medium">No villages registered. Import your empire in the <span className="text-amber-500 font-bold uppercase tracking-tighter">Villages</span> tab first.</p>
+          <Globe className="w-8 h-8 text-slate-700 mx-auto" />
+          <p className="text-slate-400 font-medium">No villages registered. Initialize your empire in the <span className="text-amber-500 font-bold uppercase tracking-tighter">Villages</span> tab.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
@@ -204,10 +182,8 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${v.possibleCount > 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                    {v.possibleCount} Possible
-                  </div>
+                <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${v.possibleCount > 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                  {v.possibleCount} Possible
                 </div>
               </div>
 
@@ -215,11 +191,7 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
                 <div className="flex items-end gap-4">
                   <div className="flex-grow space-y-1">
                     <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tribe Dispatch</label>
-                    <select 
-                      value={v.setting.tribe} 
-                      onChange={e => updateVillageSetting(v.id, { tribe: e.target.value as TribeName })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-amber-500 font-bold outline-none"
-                    >
+                    <select value={v.setting.tribe} onChange={e => updateVillageSetting(v.id, { tribe: e.target.value as TribeName })} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-amber-500 font-bold outline-none">
                       {TRIBES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
@@ -227,14 +199,7 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
                     <div className="flex justify-between items-center">
                       <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">TS Level: <span className="text-amber-500">{v.setting.tsLevel}</span></label>
                     </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="20" 
-                      value={v.setting.tsLevel} 
-                      onChange={e => updateVillageSetting(v.id, { tsLevel: Number(e.target.value) })}
-                      className="w-full accent-amber-500 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer"
-                    />
+                    <input type="range" min="0" max="20" value={v.setting.tsLevel} onChange={e => updateVillageSetting(v.id, { tsLevel: Number(e.target.value) })} className="w-full accent-amber-500 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer" />
                   </div>
                 </div>
 
@@ -244,18 +209,12 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
                       <div className="col-span-4 text-center">Travel</div>
                       <div className="col-span-4 text-right">Latest Launch</div>
                    </div>
-                   <div className="divide-y divide-slate-800/40 max-h-[220px] overflow-y-auto custom-scrollbar">
+                   <div className="divide-y divide-slate-800/40 max-h-[200px] overflow-y-auto custom-scrollbar">
                       {v.unitResults.map((ur, idx) => (
                         <div key={idx} className={`grid grid-cols-12 px-3 py-2 items-center hover:bg-slate-900/40 transition-colors ${ur.isOnTime ? 'bg-emerald-500/5' : 'bg-rose-500/5'}`}>
-                           <div className={`col-span-4 text-[10px] font-bold truncate ${ur.isOnTime ? 'text-emerald-500' : 'text-red-500'}`}>
-                              {ur.unitName}
-                           </div>
-                           <div className="col-span-4 text-[9px] font-mono text-slate-500 text-center">
-                              {formatSeconds(ur.travelTimeSeconds)}
-                           </div>
-                           <div className={`col-span-4 text-[11px] font-mono font-black text-right ${ur.isOnTime ? 'text-emerald-500' : 'text-red-500'}`}>
-                              {ur.launchDate.toISOString().slice(11, 19)}
-                           </div>
+                           <div className={`col-span-4 text-[10px] font-bold truncate ${ur.isOnTime ? 'text-emerald-500' : 'text-red-500'}`}>{ur.unitName}</div>
+                           <div className="col-span-4 text-[9px] font-mono text-slate-500 text-center">{formatSeconds(ur.travelTimeSeconds)}</div>
+                           <div className={`col-span-4 text-[11px] font-mono font-black text-right ${ur.isOnTime ? 'text-emerald-500' : 'text-red-500'}`}>{ur.launchDate.toISOString().slice(11, 19)}</div>
                         </div>
                       ))}
                    </div>

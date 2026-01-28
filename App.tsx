@@ -6,7 +6,7 @@ import { DefenseCoordinator } from './components/DefenseCoordinator';
 import { ProfileManager } from './components/ProfileManager';
 import { AuthSystem } from './components/AuthSystem';
 import { supabase } from './lib/supabase';
-import { Shield, Box, MapPin, User, LogOut, ShieldAlert, Loader2 } from 'lucide-react';
+import { Shield, Box, MapPin, User, LogOut, ShieldAlert, Loader2, AlertTriangle } from 'lucide-react';
 import { UserVillage } from './types';
 
 const App: React.FC = () => {
@@ -14,6 +14,7 @@ const App: React.FC = () => {
   const [villages, setVillages] = useState<UserVillage[]>([]);
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   useEffect(() => {
     // Initial session check
@@ -39,7 +40,7 @@ const App: React.FC = () => {
 
   const syncProfile = async (user: any) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
@@ -47,8 +48,9 @@ const App: React.FC = () => {
           email: user.email,
           updated_at: new Date().toISOString(),
         });
+      if (error) console.warn("Profile sync failed. 'profiles' table might be missing.");
     } catch (e) {
-      console.log("Profile sync skipped - registry table may not exist.");
+      console.log("Profile sync skipped.");
     }
   };
 
@@ -59,32 +61,29 @@ const App: React.FC = () => {
   }, [session]);
 
   const fetchVillages = async () => {
+    setDbError(null);
     const { data, error } = await supabase
       .from('villages')
       .select('*')
       .order('name', { ascending: true });
     
-    if (!error && data) {
+    if (error) {
+      console.error("Fetch error:", error);
+      setDbError(error.message);
+    } else if (data) {
       setVillages(data);
     }
   };
 
   const handleLogout = async () => {
     try {
-      // 1. Instantly clear state for immediate UI feedback
       setSession(null);
       setVillages([]);
       setActiveTab('resources');
-      
-      // 2. Clear Supabase local storage and session
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      // 3. Force reload if necessary to clear any memory leaks or cached states
+      await supabase.auth.signOut();
       window.location.reload();
     } catch (error) {
       console.error("Logout failed:", error);
-      // Fallback: forcefully clear session state
       setSession(null);
     }
   };
@@ -176,6 +175,15 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      {dbError && (
+        <div className="bg-red-500/10 border-b border-red-500/20 p-2 text-center flex items-center justify-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-500" />
+          <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">
+            Database Sync Error: {dbError}. Check instructions in the Villages tab.
+          </p>
+        </div>
+      )}
+
       <main className="flex-grow p-4 md:p-6 max-w-7xl mx-auto w-full">
         {activeTab === 'resources' && <ResourceManagement />}
         {activeTab === 'attacks' && <AttackCoordinator userVillages={villages} />}
@@ -184,6 +192,7 @@ const App: React.FC = () => {
           <ProfileManager 
             villages={villages}
             refreshVillages={fetchVillages}
+            hasDbError={!!dbError}
           />
         )}
       </main>

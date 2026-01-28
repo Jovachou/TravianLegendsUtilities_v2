@@ -35,4 +35,5 @@ export interface UserVillage {
   name: string;
   x: number;
   y: number;
+  ts_level: number;
 }
