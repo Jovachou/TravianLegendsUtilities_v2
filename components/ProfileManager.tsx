@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { UserVillage } from '../types';
-import { Home, Plus, Trash2, Map, Users, Activity, Loader2, Shield } from 'lucide-react';
+import { Home, Plus, Trash2, Map, Users, Activity, Loader2, Shield, Sword, Hammer, Castle } from 'lucide-react';
 
 interface ProfileManagerProps {
   villages: UserVillage[];
@@ -17,7 +17,12 @@ interface RegisteredUser {
 }
 
 export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refreshVillages }) => {
-  const [newVillage, setNewVillage] = useState({ name: '', x: '', y: '', ts_level: 0 });
+  const [newVillage, setNewVillage] = useState({ 
+    name: '', x: '', y: '', ts_level: 0, 
+    barracks_level: 0, gb_level: 0, 
+    stable_level: 0, gs_level: 0, 
+    workshop_level: 0 
+  });
   const [isAdding, setIsAdding] = useState(false);
   const [users, setUsers] = useState<RegisteredUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -57,11 +62,21 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
           name: newVillage.name,
           x: Number(newVillage.x),
           y: Number(newVillage.y),
-          ts_level: newVillage.ts_level
+          ts_level: newVillage.ts_level,
+          barracks_level: newVillage.barracks_level,
+          gb_level: newVillage.gb_level,
+          stable_level: newVillage.stable_level,
+          gs_level: newVillage.gs_level,
+          workshop_level: newVillage.workshop_level
         }]);
       
       if (!error) {
-        setNewVillage({ name: '', x: '', y: '', ts_level: 0 });
+        setNewVillage({ 
+          name: '', x: '', y: '', ts_level: 0, 
+          barracks_level: 0, gb_level: 0, 
+          stable_level: 0, gs_level: 0, 
+          workshop_level: 0 
+        });
         await refreshVillages();
       } else {
         alert("Operation Failed: " + error.message);
@@ -70,11 +85,11 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
     }
   };
 
-  const updateTsLevel = async (id: string, newLevel: number) => {
-    setUpdatingId(id);
+  const updateVillageStat = async (id: string, field: keyof UserVillage, value: number) => {
+    setUpdatingId(`${id}-${field}`);
     const { error } = await supabase
       .from('villages')
-      .update({ ts_level: newLevel })
+      .update({ [field]: value })
       .eq('id', id);
     
     if (!error) {
@@ -96,8 +111,28 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
     }
   };
 
+  const BuildingSlider = ({ label, value, onChange, icon: Icon, isUpdating }: any) => (
+    <div className="space-y-1">
+      <div className="flex justify-between items-center">
+        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-1">
+          {Icon && <Icon className={`w-2.5 h-2.5 ${isUpdating ? 'animate-pulse text-amber-500' : 'text-slate-600'}`} />}
+          {label}
+        </label>
+        <span className={`text-[10px] font-mono font-bold ${isUpdating ? 'text-amber-500' : 'text-slate-400'}`}>Lvl {value}</span>
+      </div>
+      <input 
+        type="range" 
+        min="0" 
+        max="20" 
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-amber-500 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer"
+      />
+    </div>
+  );
+
   return (
-    <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in duration-500 pb-20">
+    <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-500 pb-20">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
@@ -108,13 +143,13 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1 space-y-6">
-          <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl space-y-4 sticky top-24">
             <h3 className="text-xs font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
               <Plus className="w-4 h-4" /> Add Village
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Village Name</label>
                 <input 
@@ -145,20 +180,17 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
                   />
                 </div>
               </div>
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">TS Level</label>
-                  <span className="text-amber-500 font-mono text-xs">{newVillage.ts_level}</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="20" 
-                  value={newVillage.ts_level} 
-                  onChange={e => setNewVillage({...newVillage, ts_level: Number(e.target.value)})}
-                  className="w-full accent-amber-500"
-                />
+              
+              <div className="pt-2 border-t border-slate-800 space-y-3">
+                <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest block">Infrastructure</span>
+                <BuildingSlider label="Tourn. Square" value={newVillage.ts_level} onChange={(v: number) => setNewVillage({...newVillage, ts_level: v})} icon={Castle} />
+                <BuildingSlider label="Barracks" value={newVillage.barracks_level} onChange={(v: number) => setNewVillage({...newVillage, barracks_level: v})} icon={Sword} />
+                <BuildingSlider label="Gt. Barracks" value={newVillage.gb_level} onChange={(v: number) => setNewVillage({...newVillage, gb_level: v})} icon={Sword} />
+                <BuildingSlider label="Stable" value={newVillage.stable_level} onChange={(v: number) => setNewVillage({...newVillage, stable_level: v})} icon={Activity} />
+                <BuildingSlider label="Gt. Stable" value={newVillage.gs_level} onChange={(v: number) => setNewVillage({...newVillage, gs_level: v})} icon={Activity} />
+                <BuildingSlider label="Workshop" value={newVillage.workshop_level} onChange={(v: number) => setNewVillage({...newVillage, workshop_level: v})} icon={Hammer} />
               </div>
+
               <button 
                 onClick={addVillage}
                 disabled={isAdding}
@@ -170,55 +202,87 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refres
           </div>
         </div>
 
-        <div className="md:col-span-2">
-          <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
-            <div className="bg-slate-950 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Database</span>
-              <span className="text-[10px] font-black text-amber-500 uppercase">{villages.length} Registered</span>
-            </div>
-            
-            <div className="divide-y divide-slate-800 max-h-[500px] overflow-y-auto custom-scrollbar">
-              {villages.length === 0 ? (
-                <div className="p-12 text-center text-slate-700 italic text-sm">No villages registered...</div>
-              ) : villages.map((v) => (
-                <div key={v.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-slate-800/40 transition-colors group gap-4">
+        <div className="lg:col-span-3 space-y-4">
+          <div className="bg-slate-950 px-6 py-4 rounded-xl border border-slate-800 flex justify-between items-center">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Tactical Database</span>
+            <span className="text-[10px] font-black text-amber-500 uppercase">{villages.length} Villages Tracked</span>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {villages.length === 0 ? (
+              <div className="col-span-full p-20 text-center text-slate-700 italic text-sm bg-slate-900 rounded-xl border border-slate-800">No villages registered...</div>
+            ) : villages.map((v) => (
+              <div key={v.id} className="bg-slate-900 rounded-xl border border-slate-800 shadow-xl flex flex-col hover:border-slate-700 transition-colors group">
+                <div className="p-5 border-b border-slate-800 flex justify-between items-start">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center text-amber-500 group-hover:bg-amber-500 group-hover:text-slate-950 transition-colors">
                       <Map className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-white uppercase tracking-tight">{v.name}</h4>
+                      <h4 className="text-base font-bold text-white uppercase tracking-tight">{v.name}</h4>
                       <div className="flex gap-2 mt-0.5">
-                        <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">({v.x} | {v.y})</span>
+                        <span className="text-[10px] font-mono text-amber-500/70 font-bold uppercase tracking-widest">({v.x} | {v.y})</span>
                       </div>
                     </div>
                   </div>
+                  <button 
+                    onClick={() => removeVillage(v.id)}
+                    className="p-2 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
 
-                  <div className="flex items-center gap-6">
-                    <div className="flex flex-col gap-1 min-w-[120px]">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[8px] font-black text-slate-600 uppercase">TS Level</span>
-                        <span className={`text-[10px] font-mono font-bold ${updatingId === v.id ? 'text-amber-500 animate-pulse' : 'text-slate-400'}`}>Lvl {v.ts_level}</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0" 
-                        max="20" 
-                        value={v.ts_level}
-                        onChange={(e) => updateTsLevel(v.id, Number(e.target.value))}
-                        className="accent-amber-500 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer"
-                      />
-                    </div>
-                    <button 
-                      onClick={() => removeVillage(v.id)}
-                      className="p-2 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                <div className="p-5 grid grid-cols-2 gap-x-8 gap-y-6">
+                  <div className="space-y-4">
+                    <BuildingSlider 
+                      label="Tourn. Square" 
+                      value={v.ts_level} 
+                      onChange={(val: number) => updateVillageStat(v.id, 'ts_level', val)} 
+                      icon={Castle}
+                      isUpdating={updatingId === `${v.id}-ts_level`}
+                    />
+                    <BuildingSlider 
+                      label="Barracks" 
+                      value={v.barracks_level} 
+                      onChange={(val: number) => updateVillageStat(v.id, 'barracks_level', val)} 
+                      icon={Sword}
+                      isUpdating={updatingId === `${v.id}-barracks_level`}
+                    />
+                    <BuildingSlider 
+                      label="Gt. Barracks" 
+                      value={v.gb_level} 
+                      onChange={(val: number) => updateVillageStat(v.id, 'gb_level', val)} 
+                      icon={Sword}
+                      isUpdating={updatingId === `${v.id}-gb_level`}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <BuildingSlider 
+                      label="Stable" 
+                      value={v.stable_level} 
+                      onChange={(val: number) => updateVillageStat(v.id, 'stable_level', val)} 
+                      icon={Activity}
+                      isUpdating={updatingId === `${v.id}-stable_level`}
+                    />
+                    <BuildingSlider 
+                      label="Gt. Stable" 
+                      value={v.gs_level} 
+                      onChange={(val: number) => updateVillageStat(v.id, 'gs_level', val)} 
+                      icon={Activity}
+                      isUpdating={updatingId === `${v.id}-gs_level`}
+                    />
+                    <BuildingSlider 
+                      label="Workshop" 
+                      value={v.workshop_level} 
+                      onChange={(val: number) => updateVillageStat(v.id, 'workshop_level', val)} 
+                      icon={Hammer}
+                      isUpdating={updatingId === `${v.id}-workshop_level`}
+                    />
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

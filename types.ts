@@ -36,4 +36,9 @@ export interface UserVillage {
   x: number;
   y: number;
   ts_level: number;
+  barracks_level: number;
+  gb_level: number;
+  stable_level: number;
+  gs_level: number;
+  workshop_level: number;
 }
