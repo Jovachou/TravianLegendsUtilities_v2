@@ -1,127 +1,96 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { UserVillage } from '../types';
-import { Home, Plus, Trash2, Save, Cloud, LogOut, Map, Info, Download, Upload } from 'lucide-react';
+import { Home, Plus, Trash2, Map, Info, Users, Activity, Loader2, Calendar, Shield } from 'lucide-react';
 
 interface ProfileManagerProps {
-  isLoggedIn: boolean;
-  onLogin: () => void;
-  onLogout: () => void;
   villages: UserVillage[];
-  setVillages: React.Dispatch<React.SetStateAction<UserVillage[]>>;
+  refreshVillages: () => Promise<void>;
 }
 
-export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLogin, onLogout, villages, setVillages }) => {
-  const [newVillage, setNewVillage] = useState({ name: '', x: '', y: '' });
+interface RegisteredUser {
+  id: string;
+  display_name: string;
+  email: string;
+  updated_at: string;
+}
 
-  const addVillage = () => {
-    if (newVillage.name && newVillage.x !== '' && newVillage.y !== '') {
-      setVillages([...villages, {
-        id: Math.random().toString(36).substr(2, 9),
-        name: newVillage.name,
-        x: Number(newVillage.x),
-        y: Number(newVillage.y)
-      }]);
-      setNewVillage({ name: '', x: '', y: '' });
+export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refreshVillages }) => {
+  const [newVillage, setNewVillage] = useState({ name: '', x: '', y: '' });
+  const [isAdding, setIsAdding] = useState(false);
+  const [users, setUsers] = useState<RegisteredUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [showRegistry, setShowRegistry] = useState(false);
+
+  useEffect(() => {
+    if (showRegistry) {
+      fetchUsers();
+    }
+  }, [showRegistry]);
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      
+      if (!error && data) {
+        setUsers(data);
+      }
+    } catch (e) {
+      console.log("Registry could not be loaded. Ensure 'profiles' table exists.");
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
-  const removeVillage = (id: string) => {
-    setVillages(villages.filter(v => v.id !== id));
-  };
-
-  const exportVillages = () => {
-    const data = JSON.stringify(villages, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `villages_export_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importVillages = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    // Fix: Removed non-existent property access 'Clarify'
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (re) => {
-          try {
-            const imported = JSON.parse(re.target?.result as string);
-            if (Array.isArray(imported)) {
-              setVillages([...villages, ...imported.map(v => ({ ...v, id: Math.random().toString(36).substr(2, 9) }))]);
-              alert("Villages imported successfully!");
-            }
-          } catch (err) {
-            alert("Failed to import. Invalid JSON format.");
-          }
-        };
-        reader.readAsText(file);
+  const addVillage = async () => {
+    if (newVillage.name && newVillage.x !== '' && newVillage.y !== '') {
+      setIsAdding(true);
+      const { error } = await supabase
+        .from('villages')
+        .insert([{
+          name: newVillage.name,
+          x: Number(newVillage.x),
+          y: Number(newVillage.y)
+        }]);
+      
+      if (!error) {
+        setNewVillage({ name: '', x: '', y: '' });
+        await refreshVillages();
+      } else {
+        alert(error.message);
       }
-    };
-    input.click();
+      setIsAdding(false);
+    }
   };
 
-  if (!isLoggedIn) {
-    return (
-      <div className="max-w-md mx-auto mt-12 space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center p-4 bg-amber-500/10 rounded-full border border-amber-500/20 mb-4">
-            <Cloud className="w-12 h-12 text-amber-500" />
-          </div>
-          <h2 className="text-3xl font-black text-white uppercase tracking-tight">Sync Your Empire</h2>
-          <p className="text-slate-400 mt-2 text-sm leading-relaxed">
-            Register for a free account to persist your village database across multiple devices and never lose your coordinates again.
-          </p>
-        </div>
-
-        <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl space-y-6">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Email Address</label>
-              <input type="email" placeholder="commander@alliance.com" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-sm focus:border-amber-500/50 outline-none" />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Password</label>
-              <input type="password" placeholder="••••••••" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-sm focus:border-amber-500/50 outline-none" />
-            </div>
-          </div>
-          <button 
-            onClick={onLogin}
-            className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black uppercase text-sm rounded-xl shadow-lg transition-all active:scale-95"
-          >
-            Create Account & Login
-          </button>
-          <div className="text-center">
-            <button className="text-[10px] text-slate-600 font-bold uppercase tracking-widest hover:text-amber-500 transition-colors">Already have an account? Sign In</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const removeVillage = async (id: string) => {
+    if (confirm("Retire this village from tactical duty?")) {
+      const { error } = await supabase
+        .from('villages')
+        .delete()
+        .eq('id', id);
+      
+      if (!error) {
+        await refreshVillages();
+      }
+    }
+  };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in duration-500 pb-20">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
             <Home className="text-amber-500 w-8 h-8" />
             My Villages
           </h2>
-          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Manage your active sector coordinates</p>
+          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Cloud-synced tactical sectors</p>
         </div>
-        <button 
-          onClick={onLogout}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-red-500/20 text-slate-400 hover:text-red-500 border border-slate-800 hover:border-red-500/50 rounded-lg transition-all text-xs font-bold uppercase"
-        >
-          <LogOut className="w-4 h-4" />
-          Logout
-        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -143,7 +112,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">X Coordinate</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">X Coord</label>
                   <input 
                     type="number" 
                     value={newVillage.x}
@@ -152,7 +121,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Y Coordinate</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Y Coord</label>
                   <input 
                     type="number" 
                     value={newVillage.y}
@@ -163,9 +132,10 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
               </div>
               <button 
                 onClick={addVillage}
-                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold uppercase text-xs rounded-lg transition-all active:scale-95 shadow-lg border border-slate-700"
+                disabled={isAdding}
+                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold uppercase text-xs rounded-lg transition-all active:scale-95 shadow-lg border border-slate-700 flex items-center justify-center gap-2"
               >
-                Register Village
+                {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Register Village'}
               </button>
             </div>
           </div>
@@ -174,7 +144,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
             <div className="flex items-start gap-3">
               <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
               <p className="text-[10px] text-amber-500/80 leading-relaxed font-bold uppercase tracking-tight">
-                Villages stored here will appear in the Attack Coordinator dropdowns for rapid coordination.
+                Data saved here is encrypted and only accessible via your account.
               </p>
             </div>
           </div>
@@ -183,19 +153,13 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
         <div className="md:col-span-2">
           <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
             <div className="bg-slate-950 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Database</span>
-                <div className="flex gap-2">
-                  <button onClick={exportVillages} title="Export to File" className="text-slate-500 hover:text-amber-500 transition-colors"><Download className="w-3.5 h-3.5" /></button>
-                  <button onClick={importVillages} title="Import from File" className="text-slate-500 hover:text-amber-500 transition-colors"><Upload className="w-3.5 h-3.5" /></button>
-                </div>
-              </div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Database</span>
               <span className="text-[10px] font-black text-amber-500 uppercase">{villages.length} Registered</span>
             </div>
             
-            <div className="divide-y divide-slate-800 max-h-[500px] overflow-y-auto custom-scrollbar">
+            <div className="divide-y divide-slate-800 max-h-[400px] overflow-y-auto custom-scrollbar">
               {villages.length === 0 ? (
-                <div className="p-12 text-center text-slate-700 italic text-sm">No villages registered in the sector...</div>
+                <div className="p-12 text-center text-slate-700 italic text-sm">No villages registered in the cloud...</div>
               ) : villages.map((v) => (
                 <div key={v.id} className="p-4 flex items-center justify-between hover:bg-slate-800/40 transition-colors group">
                   <div className="flex items-center gap-4">
@@ -203,9 +167,9 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
                       <Map className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-white">{v.name}</h4>
+                      <h4 className="text-sm font-bold text-white uppercase tracking-tight">{v.name}</h4>
                       <div className="flex gap-2 mt-0.5">
-                        <span className="text-[10px] font-mono text-slate-500 uppercase">Coord:</span>
+                        <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Coord:</span>
                         <span className="text-[10px] font-mono text-amber-500 font-bold">({v.x} | {v.y})</span>
                       </div>
                     </div>
@@ -221,6 +185,71 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({ isLoggedIn, onLo
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="pt-8 border-t border-slate-900">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+             <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                <Users className="w-5 h-5 text-slate-400" />
+             </div>
+             <h3 className="text-lg font-bold text-white uppercase tracking-tight">Commander Registry</h3>
+          </div>
+          <button 
+            onClick={() => setShowRegistry(!showRegistry)}
+            className="text-[10px] font-black uppercase text-amber-500 hover:text-amber-400 tracking-widest transition-colors flex items-center gap-2"
+          >
+            {showRegistry ? 'Hide Registry' : 'Reveal Registry'}
+            <Activity className={`w-3 h-3 ${loadingUsers ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+
+        {showRegistry && (
+          <div className="bg-slate-900/50 rounded-xl border border-slate-800 overflow-hidden animate-in slide-in-from-top-2 duration-300 shadow-2xl">
+            {loadingUsers ? (
+              <div className="p-12 flex justify-center">
+                <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+              </div>
+            ) : users.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-xs text-slate-600 italic">No other registered users detected in 'profiles' table.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-950 border-b border-slate-800 text-[9px] font-black text-slate-600 uppercase tracking-widest">
+                      <th className="px-6 py-3">Commander</th>
+                      <th className="px-6 py-3">Email Address</th>
+                      <th className="px-6 py-3 text-right">Registered On</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {users.map(u => (
+                      <tr key={u.id} className="hover:bg-slate-800/20 transition-colors">
+                        <td className="px-6 py-3">
+                          <div className="flex items-center gap-2">
+                             <Shield className="w-3 h-3 text-amber-500/50" />
+                             <span className="text-xs font-bold text-slate-300 uppercase tracking-tight">{u.display_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className="text-[10px] font-mono text-slate-600">{u.email}</span>
+                        </td>
+                        <td className="px-6 py-3 text-right">
+                          <div className="flex flex-col items-end">
+                             <span className="text-[10px] text-slate-500 font-mono">{new Date(u.updated_at).toLocaleDateString()}</span>
+                             <span className="text-[8px] text-slate-700 font-bold uppercase">{new Date(u.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

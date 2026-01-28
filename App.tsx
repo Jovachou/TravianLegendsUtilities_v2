@@ -4,41 +4,116 @@ import { ResourceManagement } from './components/ResourceManagement';
 import { AttackCoordinator } from './components/AttackCoordinator';
 import { DefenseCoordinator } from './components/DefenseCoordinator';
 import { ProfileManager } from './components/ProfileManager';
-import { Shield, Box, MapPin, User, LogIn, ShieldAlert } from 'lucide-react';
+import { AuthSystem } from './components/AuthSystem';
+import { supabase } from './lib/supabase';
+import { Shield, Box, MapPin, User, LogOut, ShieldAlert, Loader2 } from 'lucide-react';
 import { UserVillage } from './types';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'resources' | 'attacks' | 'defense' | 'profile'>('resources');
-  const [villages, setVillages] = useState<UserVillage[]>(() => {
-    const saved = localStorage.getItem('tl_user_villages');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('tl_logged_in') === 'true');
+  const [villages, setVillages] = useState<UserVillage[]>([]);
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('tl_user_villages', JSON.stringify(villages));
-  }, [villages]);
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) syncProfile(session.user);
+      setLoading(false);
+    });
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    localStorage.setItem('tl_logged_in', 'true');
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        syncProfile(session.user);
+      } else {
+        setVillages([]);
+        setActiveTab('resources');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const syncProfile = async (user: any) => {
+    try {
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          display_name: user.user_metadata?.display_name || user.email?.split('@')[0],
+          email: user.email,
+          updated_at: new Date().toISOString(),
+        });
+    } catch (e) {
+      console.log("Profile sync skipped - registry table may not exist.");
+    }
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    localStorage.removeItem('tl_logged_in');
+  useEffect(() => {
+    if (session?.user) {
+      fetchVillages();
+    }
+  }, [session]);
+
+  const fetchVillages = async () => {
+    const { data, error } = await supabase
+      .from('villages')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (!error && data) {
+      setVillages(data);
+    }
   };
+
+  const handleLogout = async () => {
+    try {
+      // 1. Instantly clear state for immediate UI feedback
+      setSession(null);
+      setVillages([]);
+      setActiveTab('resources');
+      
+      // 2. Clear Supabase local storage and session
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // 3. Force reload if necessary to clear any memory leaks or cached states
+      window.location.reload();
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Fallback: forcefully clear session state
+      setSession(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <Loader2 className="w-12 h-12 text-amber-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <AuthSystem />;
+  }
+
+  const displayName = session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Commander';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Header */}
       <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
             <Shield className="w-10 h-10 text-amber-500" />
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-white uppercase">Travian Legends Utilities</h1>
-              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest">Strategic Command & Planning</p>
+              <h1 className="text-2xl font-extrabold tracking-tight text-white uppercase text-nowrap">Travian Legends Utilities</h1>
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest truncate max-w-[200px]">
+                Commander: {displayName}
+              </p>
             </div>
           </div>
           
@@ -86,49 +161,36 @@ const App: React.FC = () => {
                 }`}
               >
                 <User className="w-4 h-4" />
-                {isLoggedIn ? 'Villages' : 'Sign In'}
+                Villages
               </button>
             </nav>
 
-            {!isLoggedIn && (
-              <button 
-                onClick={handleLogin}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase rounded-lg transition-all shadow-lg active:scale-95"
-              >
-                <LogIn className="w-4 h-4" />
-                Login
-              </button>
-            )}
-            {isLoggedIn && (
-               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-full border border-slate-700">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">Sync Active</span>
-               </div>
-            )}
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-500 border border-slate-700 hover:border-red-500/50 rounded-lg transition-all text-xs font-bold uppercase"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-grow p-4 md:p-6 max-w-7xl mx-auto w-full">
         {activeTab === 'resources' && <ResourceManagement />}
         {activeTab === 'attacks' && <AttackCoordinator userVillages={villages} />}
         {activeTab === 'defense' && <DefenseCoordinator userVillages={villages} />}
         {activeTab === 'profile' && (
           <ProfileManager 
-            isLoggedIn={isLoggedIn} 
-            onLogin={handleLogin} 
-            onLogout={handleLogout}
             villages={villages}
-            setVillages={setVillages}
+            refreshVillages={fetchVillages}
           />
         )}
       </main>
 
-      {/* Footer */}
       <footer className="bg-slate-950 py-6 px-4 text-center text-slate-500 text-[10px] uppercase tracking-widest border-t border-slate-900">
         <p>&copy; 2024 Travian Legends Utilities. Not affiliated with Travian Games GmbH.</p>
-        <p className="mt-1 text-slate-700">Data persists locally on this device. Create an account for cloud synchronization.</p>
+        <p className="mt-1 text-slate-700">Strategic data is cloud-encrypted and private to your account.</p>
       </footer>
     </div>
   );
