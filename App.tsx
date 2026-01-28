@@ -173,7 +173,7 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-grow p-4 md:p-6 max-w-7xl mx-auto w-full">
-        {activeTab === 'resources' && <ResourceManagement />}
+        {activeTab === 'resources' && <ResourceManagement villages={villages} />}
         {activeTab === 'attacks' && <AttackCoordinator userVillages={villages} />}
         {activeTab === 'defense' && <DefenseCoordinator userVillages={villages} />}
         {activeTab === 'profile' && (

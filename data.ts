@@ -72,9 +72,23 @@ export const TROOP_DATA: UnitData[] = [
   { tribe: "Vikings", unit: "Ram", attack: 65, def_inf: 30, def_cav: 80, speed: 4, carry: 0, wood: 950, clay: 325, iron: 375, crop: 70, sum_resources: 1720, crop_upkeep: 2, training_time_s: 4200 },
   { tribe: "Vikings", unit: "Catapult", attack: 50, def_inf: 60, def_cav: 10, speed: 3, carry: 0, wood: 850, clay: 1225, iron: 625, crop: 60, sum_resources: 2760, crop_upkeep: 6, training_time_s: 9000 },
   { tribe: "Vikings", unit: "Jarl", attack: 40, def_inf: 40, def_cav: 60, speed: 5, carry: 0, wood: 35500, clay: 26600, iron: 25000, crop: 27200, sum_resources: 114300, crop_upkeep: 4, training_time_s: 70500 },
-  { tribe: "Vikings", unit: "Settler", attack: 10, def_inf: 80, def_cav: 80, speed: 5, carry: 3000, wood: 5800, clay: 4600, iron: 4800, crop: 4800, sum_resources: 20000, crop_upkeep: 1, training_time_s: 31000 }
+  { tribe: "Vikings", unit: "Settler", attack: 10, def_inf: 80, def_cav: 80, speed: 5, carry: 3000, wood: 5800, clay: 4400, iron: 4800, crop: 4800, sum_resources: 20000, crop_upkeep: 1, training_time_s: 31000 }
 ];
 
 export const TRIBES: TribeName[] = [
   'Romans', 'Gauls', 'Teutons', 'Egyptians', 'Huns', 'Spartans', 'Vikings'
+];
+
+/** 
+ * Training time reduction multipliers (1.0 = 100%)
+ * Index 0 corresponds to Level 1, Index 19 to Level 20.
+ */
+export const TRAINING_TIME_REDUCTION_COMMON = [
+  1.00, 0.90, 0.81, 0.73, 0.66, 0.59, 0.53, 0.48, 0.43, 0.39, 
+  0.35, 0.31, 0.28, 0.25, 0.23, 0.21, 0.19, 0.17, 0.15, 0.14
+];
+
+export const TRAINING_TIME_REDUCTION_BARRACKS = [
+  1.0000, 0.9000, 0.8100, 0.7290, 0.6561, 0.5905, 0.5314, 0.4783, 0.4305, 0.3874,
+  0.3487, 0.3138, 0.2824, 0.2542, 0.2288, 0.2059, 0.1853, 0.1668, 0.1501, 0.1351
 ];
