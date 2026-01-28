@@ -6,7 +6,7 @@ import { DefenseCoordinator } from './components/DefenseCoordinator';
 import { ProfileManager } from './components/ProfileManager';
 import { AuthSystem } from './components/AuthSystem';
 import { supabase } from './lib/supabase';
-import { Shield, Box, MapPin, User, LogOut, ShieldAlert, Loader2, AlertTriangle } from 'lucide-react';
+import { Shield, Box, MapPin, User, LogOut, ShieldAlert, Loader2 } from 'lucide-react';
 import { UserVillage } from './types';
 
 const App: React.FC = () => {
@@ -14,7 +14,6 @@ const App: React.FC = () => {
   const [villages, setVillages] = useState<UserVillage[]>([]);
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [dbError, setDbError] = useState<string | null>(null);
 
   useEffect(() => {
     // Initial session check
@@ -61,7 +60,6 @@ const App: React.FC = () => {
   }, [session]);
 
   const fetchVillages = async () => {
-    setDbError(null);
     const { data, error } = await supabase
       .from('villages')
       .select('*')
@@ -69,7 +67,6 @@ const App: React.FC = () => {
     
     if (error) {
       console.error("Fetch error:", error);
-      setDbError(error.message);
     } else if (data) {
       setVillages(data);
     }
@@ -175,15 +172,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {dbError && (
-        <div className="bg-red-500/10 border-b border-red-500/20 p-2 text-center flex items-center justify-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-500" />
-          <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">
-            Database Sync Error: {dbError}. Check instructions in the Villages tab.
-          </p>
-        </div>
-      )}
-
       <main className="flex-grow p-4 md:p-6 max-w-7xl mx-auto w-full">
         {activeTab === 'resources' && <ResourceManagement />}
         {activeTab === 'attacks' && <AttackCoordinator userVillages={villages} />}
@@ -192,7 +180,6 @@ const App: React.FC = () => {
           <ProfileManager 
             villages={villages}
             refreshVillages={fetchVillages}
-            hasDbError={!!dbError}
           />
         )}
       </main>

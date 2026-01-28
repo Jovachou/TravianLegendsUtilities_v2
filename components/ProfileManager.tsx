@@ -2,12 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { UserVillage } from '../types';
-import { Home, Plus, Trash2, Map, Info, Users, Activity, Loader2, Shield, AlertTriangle, Terminal, Copy, Check, Database } from 'lucide-react';
+import { Home, Plus, Trash2, Map, Users, Activity, Loader2, Shield } from 'lucide-react';
 
 interface ProfileManagerProps {
   villages: UserVillage[];
   refreshVillages: () => Promise<void>;
-  hasDbError?: boolean;
 }
 
 interface RegisteredUser {
@@ -17,33 +16,13 @@ interface RegisteredUser {
   updated_at: string;
 }
 
-export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refreshVillages, hasDbError }) => {
+export const ProfileManager: React.FC<ProfileManagerProps> = ({ villages, refreshVillages }) => {
   const [newVillage, setNewVillage] = useState({ name: '', x: '', y: '', ts_level: 0 });
   const [isAdding, setIsAdding] = useState(false);
   const [users, setUsers] = useState<RegisteredUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [showRegistry, setShowRegistry] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  const sqlSetup = `-- FIX FOR 'ts_level' ERROR: Run this in Supabase SQL Editor
-ALTER TABLE villages ADD COLUMN IF NOT EXISTS ts_level INTEGER DEFAULT 0;
-
--- SETUP REGISTRY: Run this to enable the Commander Registry
-CREATE TABLE IF NOT EXISTS profiles (
-  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-  display_name TEXT,
-  email TEXT,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
-CREATE POLICY "Public profiles are viewable by everyone" ON profiles FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
-CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
-DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
-CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);`;
 
   useEffect(() => {
     if (showRegistry) {
@@ -85,12 +64,7 @@ CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (
         setNewVillage({ name: '', x: '', y: '', ts_level: 0 });
         await refreshVillages();
       } else {
-        // Specific error handling for the TS Level column
-        if (error.message.includes('ts_level')) {
-          alert("TACTICAL ERROR: The 'ts_level' column is missing from your database. Please use the 'Database Doctor' section below to fix it.");
-        } else {
-          alert("Database Error: " + error.message);
-        }
+        alert("Operation Failed: " + error.message);
       }
       setIsAdding(false);
     }
@@ -122,12 +96,6 @@ CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (
     }
   };
 
-  const handleCopySql = () => {
-    navigator.clipboard.writeText(sqlSetup);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in duration-500 pb-20">
       <div className="flex justify-between items-center">
@@ -139,50 +107,6 @@ CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Cloud-synced tactical sectors</p>
         </div>
       </div>
-
-      {/* Database Doctor Section */}
-      {(hasDbError || villages.length === 0) && (
-        <div className="bg-slate-900 border border-amber-500/30 rounded-2xl overflow-hidden animate-in zoom-in-95 duration-500 shadow-2xl">
-           <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                 <div className="p-2 bg-amber-500/10 rounded-lg">
-                    <Database className="w-5 h-5 text-amber-500" />
-                 </div>
-                 <h3 className="text-sm font-black text-white uppercase">Database Doctor: Resolve Schema Mismatch</h3>
-              </div>
-              
-              <div className="flex flex-col md:flex-row gap-6">
-                 <div className="flex-grow space-y-3">
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Your Supabase database is missing the <span className="text-amber-500 font-bold">'ts_level'</span> column. This happens when the app adds new features that require more data storage.
-                    </p>
-                    <div className="bg-slate-950 rounded-xl border border-slate-800 p-4 relative group">
-                       <button 
-                         onClick={handleCopySql}
-                         className="absolute top-2 right-2 p-2 bg-slate-900 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-all border border-slate-800 flex items-center gap-2"
-                       >
-                         {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                         <span className="text-[8px] font-black uppercase">{copied ? 'Copied' : 'Copy Fix'}</span>
-                       </button>
-                       <pre className="text-[9px] font-mono text-slate-600 overflow-x-auto whitespace-pre custom-scrollbar max-h-[120px]">
-                         {sqlSetup}
-                       </pre>
-                    </div>
-                 </div>
-                 <div className="md:w-64 shrink-0 space-y-3">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">How to fix:</h4>
-                    <ol className="text-[10px] text-slate-400 space-y-2 list-decimal list-inside font-bold uppercase">
-                       <li>Click <span className="text-white">Copy Fix</span> above</li>
-                       <li>Go to your <span className="text-amber-500">Supabase SQL Editor</span></li>
-                       <li>Open a <span className="text-white">New Query</span> tab</li>
-                       <li>Paste & click <span className="text-white">Run</span></li>
-                       <li><span className="text-amber-500">Refresh</span> this page</li>
-                    </ol>
-                 </div>
-              </div>
-           </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1 space-y-6">
