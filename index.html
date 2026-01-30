@@ -21,28 +21,71 @@
 <style>
   :root {
     color-scheme: dark;
+    --transition-speed: 0.3s;
   }
+  
   body {
     font-family: 'Inter', sans-serif;
-    background-color: #020617; /* slate-950 */
+    transition: background-color var(--transition-speed), color var(--transition-speed);
   }
+
+  /* EMPIRE PARCHMENT THEME (Bright) */
+  body.theme-bright {
+    color-scheme: light;
+    background-color: #f4f1ea; /* Soft Parchment */
+  }
+
+  /* Global Overrides for Tailwind Slate classes in Bright Mode */
+  .theme-bright .bg-slate-950 { background-color: #f4f1ea !important; }
+  .theme-bright .bg-slate-900 { background-color: #fdfbf7 !important; }
+  .theme-bright .bg-slate-900\/50 { background-color: rgba(253, 251, 247, 0.7) !important; }
+  .theme-bright .bg-slate-800 { background-color: #ece6da !important; }
+  
+  .theme-bright .border-slate-800 { border-color: #dcd4c3 !important; }
+  .theme-bright .border-slate-900 { border-color: #dcd4c3 !important; }
+  .theme-bright .border-slate-700 { border-color: #c9bfab !important; }
+  
+  .theme-bright .text-slate-100 { color: #2d2a26 !important; }
+  .theme-bright .text-white { color: #1a1816 !important; }
+  .theme-bright .text-slate-400 { color: #6b6357 !important; }
+  .theme-bright .text-slate-500 { color: #8e8374 !important; }
+  .theme-bright .text-slate-300 { color: #4a453e !important; }
+  .theme-bright .text-slate-200 { color: #35322e !important; }
+  .theme-bright .text-slate-600 { color: #9e9382 !important; }
+  
+  .theme-bright .shadow-xl { shadow: 0 10px 25px -5px rgba(139, 92, 5, 0.1); }
+  .theme-bright input, .theme-bright select { 
+    background-color: #fcfbf9 !important; 
+    border-color: #dcd4c3 !important;
+    color: #2d2a26 !important;
+  }
+
   .font-mono {
     font-family: 'JetBrains Mono', monospace;
   }
-  /* Global native elements styling */
+
   select option {
-    background-color: #0f172a; /* slate-900 */
-    color: #f1f5f9; /* slate-100 */
+    background-color: #0f172a;
+    color: #f1f5f9;
   }
+
+  .theme-bright select option {
+    background-color: #fcfbf9;
+    color: #2d2a26;
+  }
+
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: #0f172a;
+    background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #334155;
     border-radius: 3px;
+  }
+  .theme-bright .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #c9bfab;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #f59e0b;

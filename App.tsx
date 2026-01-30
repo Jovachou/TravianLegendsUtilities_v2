@@ -6,7 +6,7 @@ import { DefenseCoordinator } from './components/DefenseCoordinator';
 import { ProfileManager } from './components/ProfileManager';
 import { AuthSystem } from './components/AuthSystem';
 import { supabase } from './lib/supabase';
-import { Shield, Box, MapPin, User, LogOut, ShieldAlert, Loader2 } from 'lucide-react';
+import { Shield, Box, MapPin, User, LogOut, ShieldAlert, Loader2, Moon, Sun } from 'lucide-react';
 import { UserVillage } from './types';
 
 const App: React.FC = () => {
@@ -14,6 +14,19 @@ const App: React.FC = () => {
   const [villages, setVillages] = useState<UserVillage[]>([]);
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState<'dark' | 'bright'>(() => {
+    return (localStorage.getItem('travian-theme') as 'dark' | 'bright') || 'dark';
+  });
+
+  useEffect(() => {
+    // Apply theme to body
+    if (theme === 'bright') {
+      document.body.classList.add('theme-bright');
+    } else {
+      document.body.classList.remove('theme-bright');
+    }
+    localStorage.setItem('travian-theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     // Initial session check
@@ -85,6 +98,10 @@ const App: React.FC = () => {
     }
   };
 
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'bright' : 'dark');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -94,14 +111,25 @@ const App: React.FC = () => {
   }
 
   if (!session) {
-    return <AuthSystem />;
+    return (
+      <>
+        <AuthSystem />
+        <button 
+          onClick={toggleTheme}
+          className="fixed bottom-6 right-6 p-4 rounded-full bg-slate-900 border border-slate-800 shadow-2xl text-amber-500 hover:scale-110 transition-transform z-[100]"
+          title="Toggle Visual Mode"
+        >
+          {theme === 'dark' ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
+        </button>
+      </>
+    );
   }
 
   const displayName = session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Commander';
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50 shadow-lg">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans transition-colors duration-300">
+      <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50 shadow-lg transition-colors duration-300">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
             <Shield className="w-10 h-10 text-amber-500" />
@@ -114,7 +142,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex flex-col sm:flex-row items-center gap-3">
-            <nav className="flex flex-wrap justify-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+            <nav className="flex flex-wrap justify-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 transition-colors duration-300">
               <button
                 onClick={() => setActiveTab('resources')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all text-xs font-bold uppercase ${
@@ -163,7 +191,7 @@ const App: React.FC = () => {
 
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-500 border border-slate-700 hover:border-red-500/50 rounded-lg transition-all text-xs font-bold uppercase"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-500 border border-slate-700 hover:border-red-500/50 rounded-lg transition-all text-xs font-bold uppercase shadow-sm"
             >
               <LogOut className="w-4 h-4" />
               Logout
@@ -184,7 +212,26 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="bg-slate-950 py-6 px-4 text-center text-slate-500 text-[10px] uppercase tracking-widest border-t border-slate-900">
+      <div className="flex justify-center pb-8 pt-4">
+        <button 
+          onClick={toggleTheme}
+          className="flex items-center gap-3 px-8 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-xs font-black uppercase tracking-[0.2em] text-amber-500 shadow-xl transition-all active:scale-95 group"
+        >
+          {theme === 'dark' ? (
+            <>
+              <Sun className="w-4 h-4 transition-transform group-hover:rotate-45" />
+              Switch to Empire Parchment
+            </>
+          ) : (
+            <>
+              <Moon className="w-4 h-4 transition-transform group-hover:-rotate-12" />
+              Switch to Tactical Dark
+            </>
+          )}
+        </button>
+      </div>
+
+      <footer className="bg-slate-950 py-6 px-4 text-center text-slate-500 text-[10px] uppercase tracking-widest border-t border-slate-900 transition-colors duration-300">
         <p>&copy; 2024 Travian Legends Utilities. Not affiliated with Travian Games GmbH.</p>
         <p className="mt-1 text-slate-700">Strategic data is cloud-encrypted and private to your account.</p>
       </footer>
