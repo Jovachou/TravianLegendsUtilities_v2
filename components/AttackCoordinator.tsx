@@ -10,6 +10,7 @@ interface AttackMission {
   tribe: TribeName;
   unitName: string;
   tsLevel: number;
+  bootsBonus: number;
   startX: number | string;
   startY: number | string;
   endX: number | string;
@@ -31,9 +32,6 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
   const [lastCalculated, setLastCalculated] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<GroupByOption>('none');
   
-  // Hero Artifacts
-  const [bootsBonus, setBootsBonus] = useState<number>(0);
-
   const [targetTime, setTargetTime] = useState<string>(
     new Date(Date.now() + 3600000).toISOString().slice(0, 19)
   );
@@ -45,6 +43,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
       tribe: 'Romans',
       unitName: 'Fire Catapult',
       tsLevel: 0,
+      bootsBonus: 0,
       startX: 0,
       startY: 0,
       endX: 0,
@@ -61,7 +60,6 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
         if (decodedData.missions && decodedData.targetTime) {
           setMissions(decodedData.missions);
           setTargetTime(decodedData.targetTime);
-          if (decodedData.bootsBonus) setBootsBonus(decodedData.bootsBonus);
           setLastCalculated("Imported from Link");
         }
       } catch (e) {
@@ -114,6 +112,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
         tribe: lastMission?.tribe || 'Romans',
         unitName: lastMission?.unitName || 'Legionnaire',
         tsLevel: lastMission?.tsLevel || 0,
+        bootsBonus: lastMission?.bootsBonus || 0,
         startX: lastMission?.startX ?? 0,
         startY: lastMission?.startY ?? 0,
         endX: lastMission?.endX ?? 0,
@@ -150,7 +149,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
   };
 
   const handleSave = () => {
-    localStorage.setItem('travian_attack_plan', JSON.stringify({ missions, targetTime, bootsBonus }));
+    localStorage.setItem('travian_attack_plan', JSON.stringify({ missions, targetTime }));
     alert('Orders Saved to Archives.');
   };
 
@@ -161,7 +160,6 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
         const parsed = JSON.parse(saved);
         setMissions(parsed.missions);
         setTargetTime(parsed.targetTime);
-        if (parsed.bootsBonus) setBootsBonus(parsed.bootsBonus);
         handleRecalculate();
       } catch (e) {
         console.error("Recall failed", e);
@@ -170,7 +168,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
   };
 
   const handleShareLink = () => {
-    const data = JSON.stringify({ missions, targetTime, bootsBonus });
+    const data = JSON.stringify({ missions, targetTime });
     const encoded = btoa(data);
     const url = new URL(window.location.href);
     url.hash = `plan=${encoded}`;
@@ -191,7 +189,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
       
       // Speed calculation with Boots and TS
       // Boots: only apply after 20 tiles. Additive with TS level.
-      const after20Mult = 1 + (m.tsLevel * 0.2) + (bootsBonus / 100);
+      const after20Mult = 1 + (m.tsLevel * 0.2) + (m.bootsBonus / 100);
       
       let tHours = distance <= 20 
         ? distance / unit.speed 
@@ -208,7 +206,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
         launchDate
       };
     }).sort((a, b) => a.launchDate.getTime() - b.launchDate.getTime());
-  }, [missions, targetTime, refreshTrigger, bootsBonus]);
+  }, [missions, targetTime, refreshTrigger]);
 
   const groupedMissions = useMemo(() => {
     if (groupBy === 'none') return [{ key: 'all', label: null, items: calculatedMissions }];
@@ -257,7 +255,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full xl:w-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full xl:w-auto">
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner">
               <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-widest">
                 <Clock className="w-3 h-3 text-amber-500" /> Current
@@ -278,22 +276,6 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
                 onChange={(e) => setTargetTime(e.target.value)}
                 className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-lg w-full"
               />
-            </div>
-
-            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner">
-              <label className="flex items-center gap-2 text-[10px] font-bold text-amber-500 uppercase mb-1 tracking-widest">
-                <Footprints className="w-3 h-3" /> Hero Arsenal (Boots)
-              </label>
-              <select 
-                value={bootsBonus} 
-                onChange={(e) => setBootsBonus(Number(e.target.value))}
-                className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-sm w-full font-bold"
-              >
-                <option value="0" className="bg-slate-900">No Boots</option>
-                <option value="25" className="bg-slate-900">Boots of the Mercenary (+25%)</option>
-                <option value="50" className="bg-slate-900">Boots of the Warrior (+50%)</option>
-                <option value="75" className="bg-slate-900">Boots of the Archon (+75%)</option>
-              </select>
             </div>
 
             <div className="flex gap-2">
@@ -340,14 +322,30 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
                     <select value={m.unitName} onChange={e => updateMission(m.id, { unitName: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-slate-200 outline-none">
                       {TROOP_DATA.filter(u => u.tribe === m.tribe).map(u => <option key={u.unit} value={u.unit}>{u.unit}</option>)}
                     </select>
-                    <div className="flex justify-between items-center mt-2 mb-1">
+                    <div className="space-y-1">
+                      <label className="flex items-center gap-2 text-[10px] font-bold text-amber-500 uppercase mt-2 tracking-widest">
+                        <Footprints className="w-2.5 h-2.5" /> Boots Gear
+                      </label>
+                      <select 
+                        value={m.bootsBonus} 
+                        onChange={(e) => updateMission(m.id, { bootsBonus: Number(e.target.value) })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-[10px] text-slate-200 outline-none font-bold uppercase"
+                      >
+                        <option value="0">Basic Issue (0%)</option>
+                        <option value="25">Mercenary (25%)</option>
+                        <option value="50">Warrior (50%)</option>
+                        <option value="75">Archon (75%)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center mb-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tournament Square</label>
                       <span className="text-amber-500 font-mono text-xs">Lvl {m.tsLevel}</span>
                     </div>
                     <input type="range" min="0" max="20" value={m.tsLevel} onChange={e => updateMission(m.id, { tsLevel: Number(e.target.value) })} className="w-full accent-amber-500 cursor-pointer"/>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
+                    
+                    <div className="pt-2">
                       <div className="flex items-center justify-between mb-1">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1"><Map className="w-2.5 h-2.5"/> Source (X|Y)</label>
                         {userVillages.length > 0 && (
@@ -361,34 +359,34 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
                         )}
                       </div>
                       <div className="flex gap-2">
-                        <input type="text" value={m.startX} onChange={e => handleCoordChange(m.id, 'startX', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none"/>
-                        <input type="text" value={m.startY} onChange={e => handleCoordChange(m.id, 'startY', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none"/>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1 mb-1"><Target className="w-2.5 h-2.5"/> Target (X|Y)</label>
-                      <div className="flex gap-2">
-                        <input type="text" value={m.endX} onChange={e => handleCoordChange(m.id, 'endX', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none focus:border-red-500/50"/>
-                        <input type="text" value={m.endY} onChange={e => handleCoordChange(m.id, 'endY', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-2 text-sm font-mono text-slate-300 outline-none focus:border-red-500/50"/>
+                        <input type="text" value={m.startX} onChange={e => handleCoordChange(m.id, 'startX', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-1 text-sm font-mono text-slate-300 outline-none"/>
+                        <input type="text" value={m.startY} onChange={e => handleCoordChange(m.id, 'startY', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-1 text-sm font-mono text-slate-300 outline-none"/>
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col justify-end">
-                    <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-3 shadow-inner min-w-[140px]">
-                      <div className="flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase">
-                        <span>Leagues</span> 
+                  <div className="flex flex-col justify-end space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1 mb-1"><Target className="w-2.5 h-2.5"/> Target (X|Y)</label>
+                      <div className="flex gap-2">
+                        <input type="text" value={m.endX} onChange={e => handleCoordChange(m.id, 'endX', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-1 text-sm font-mono text-slate-300 outline-none focus:border-red-500/50"/>
+                        <input type="text" value={m.endY} onChange={e => handleCoordChange(m.id, 'endY', e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded text-center py-1 text-sm font-mono text-slate-300 outline-none focus:border-red-500/50"/>
+                      </div>
+                    </div>
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2 shadow-inner min-w-[140px]">
+                      <div className="flex justify-between items-center text-[9px] font-bold text-slate-600 uppercase">
+                        <span>Distance</span> 
                         <span className="text-slate-300 font-mono">{calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY).toFixed(2)}</span>
                       </div>
-                      <div className="flex flex-col gap-1 border-t border-slate-900 pt-2">
-                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Dispatch Time</span> 
-                        <span className="text-amber-500 font-mono font-bold text-xl truncate">
+                      <div className="flex flex-col gap-1 border-t border-slate-900 pt-1">
+                        <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Launch At</span> 
+                        <span className="text-amber-500 font-mono font-bold text-lg truncate">
                           {(() => {
                             const ad = parseAsUTC(targetTime);
                             if (isNaN(ad.getTime())) return '---';
                             const dist = calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY);
                             const unit = TROOP_DATA.find(u => u.unit === m.unitName && u.tribe === m.tribe) || { speed: 1 };
                             
-                            const after20Mult = 1 + (m.tsLevel * 0.2) + (bootsBonus / 100);
+                            const after20Mult = 1 + (m.tsLevel * 0.2) + (m.bootsBonus / 100);
                             let tHours = dist <= 20 
                                 ? dist / unit.speed 
                                 : (20 / unit.speed) + ((dist - 20) / (unit.speed * after20Mult));
@@ -440,7 +438,10 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
                         <span className="text-lg font-mono font-bold text-amber-500">{res.launchDate.toISOString().slice(11, 19)}</span>
                       </div>
                       <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                        <span className="flex items-center gap-1"><Zap className="w-2.5 h-2.5"/> {res.unitName} (TS {res.tsLevel})</span>
+                        <span className="flex items-center gap-1">
+                          <Zap className="w-2.5 h-2.5"/> {res.unitName} (TS {res.tsLevel})
+                          {res.bootsBonus > 0 && <Footprints className="w-2.5 h-2.5 text-amber-500 ml-1" title={`${res.bootsBonus}% Boots active`} />}
+                        </span>
                         <span>{formatSeconds(res.travelTimeSeconds)} travel</span>
                       </div>
                     </div>
