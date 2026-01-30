@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { UserVillage, TribeName } from '../types';
-import { Map, Clock, Target, ShieldAlert, ShieldCheck, Globe, Zap } from 'lucide-react';
+import { Map, Clock, Target, ShieldAlert, ShieldCheck, Globe, Zap, Footprints, Flag } from 'lucide-react';
 
 interface DefenseCoordinatorProps {
   userVillages: UserVillage[];
@@ -23,6 +23,10 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
     new Date(Date.now() + 3600000).toISOString().slice(0, 19)
   );
 
+  // Tactical gear
+  const [standardBonus, setStandardBonus] = useState<number>(0);
+  const [bootsBonus, setBootsBonus] = useState<number>(0);
+
   const [villageSettings, setVillageSettings] = useState<Record<string, VillageSetting>>({});
 
   useEffect(() => {
@@ -30,19 +34,16 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
     return () => clearInterval(timer);
   }, []);
 
-  // Initialize settings from userVillages, prioritizing saved ts_level
   useEffect(() => {
     setVillageSettings(prev => {
       const next = { ...prev };
       userVillages.forEach(v => {
         if (!next[v.id]) {
           next[v.id] = {
-            tsLevel: v.ts_level, // Use the persistent value from DB
+            tsLevel: v.ts_level,
             tribe: 'Romans'
           };
         } else {
-          // If the village already existed but its TS level was updated in DB, sync it here if it wasn't manually touched
-          // (Actually, simple overwrite for reliability if userVillages changes)
           next[v.id].tsLevel = v.ts_level;
         }
       });
@@ -91,9 +92,15 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
       const distance = calculateWrappedDistance(v.x, v.y, targetX, targetY);
       
       const unitResults = tribeUnits.map(unit => {
+        // Effective base speed (Standard applies everywhere)
+        const baseSpeed = unit.speed * (1 + (standardBonus / 100));
+        
+        // After 20 tiles multiplier (Boots stack with TS)
+        const after20Mult = 1 + (setting.tsLevel * 0.2) + (bootsBonus / 100);
+
         let tHours = distance <= 20 
-          ? distance / unit.speed 
-          : (20 / unit.speed) + ((distance - 20) / (unit.speed * (1 + setting.tsLevel * 0.2)));
+          ? distance / baseSpeed 
+          : (20 / baseSpeed) + ((distance - 20) / (baseSpeed * after20Mult));
 
         const travelTimeSeconds = Math.round(tHours * 3600);
         const launchDate = new Date(arrivalLimit.getTime() - travelTimeSeconds * 1000);
@@ -117,7 +124,7 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
         possibleCount
       };
     }).sort((a, b) => b.possibleCount - a.possibleCount);
-  }, [userVillages, villageSettings, targetX, targetY, targetTime, now]);
+  }, [userVillages, villageSettings, targetX, targetY, targetTime, now, standardBonus, bootsBonus]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -133,7 +140,7 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full xl:w-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 w-full xl:w-auto">
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner">
               <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-widest">
                 <Target className="w-3 h-3 text-emerald-500" /> Target (X|Y)
@@ -152,8 +159,40 @@ export const DefenseCoordinator: React.FC<DefenseCoordinatorProps> = ({ userVill
               <input type="datetime-local" step="1" value={targetTime} onChange={(e) => setTargetTime(e.target.value)} className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-lg w-full" />
             </div>
 
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner">
+              <label className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase mb-1 tracking-widest">
+                <Flag className="w-3 h-3" /> Standard
+              </label>
+              <select 
+                value={standardBonus} 
+                onChange={(e) => setStandardBonus(Number(e.target.value))}
+                className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-sm w-full font-bold"
+              >
+                <option value="0" className="bg-slate-900">None</option>
+                <option value="15" className="bg-slate-900">Small Standard (+15%)</option>
+                <option value="20" className="bg-slate-900">Medium Standard (+20%)</option>
+                <option value="25" className="bg-slate-900">Great Standard (+25%)</option>
+              </select>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner">
+              <label className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase mb-1 tracking-widest">
+                <Footprints className="w-3 h-3" /> Hero Boots
+              </label>
+              <select 
+                value={bootsBonus} 
+                onChange={(e) => setBootsBonus(Number(e.target.value))}
+                className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-sm w-full font-bold"
+              >
+                <option value="0" className="bg-slate-900">None</option>
+                <option value="25" className="bg-slate-900">Mercenary Boots (+25%)</option>
+                <option value="50" className="bg-slate-900">Warrior Boots (+50%)</option>
+                <option value="75" className="bg-slate-900">Archon Boots (+75%)</option>
+              </select>
+            </div>
+
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner flex flex-col justify-center">
-              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-widest">Current Server Time</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-widest">Server Time</label>
               <div className="text-lg font-mono font-bold text-slate-300">{now.toISOString().slice(11, 19)}</div>
             </div>
           </div>

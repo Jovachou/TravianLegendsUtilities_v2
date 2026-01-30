@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TROOP_DATA, TRIBES } from '../data';
 import { TribeName, UserVillage } from '../types';
-import { Map, Clock, Target, Plus, Trash2, ListOrdered, Save, Upload, Zap, Globe, RefreshCw, Layers, Sword, Share2 } from 'lucide-react';
+import { Map, Clock, Target, Plus, Trash2, ListOrdered, Save, Upload, Zap, Globe, RefreshCw, Layers, Sword, Share2, Footprints } from 'lucide-react';
 
 interface AttackMission {
   id: string;
@@ -30,6 +30,9 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
   const [isCalculating, setIsCalculating] = useState(false);
   const [lastCalculated, setLastCalculated] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<GroupByOption>('none');
+  
+  // Hero Artifacts
+  const [bootsBonus, setBootsBonus] = useState<number>(0);
 
   const [targetTime, setTargetTime] = useState<string>(
     new Date(Date.now() + 3600000).toISOString().slice(0, 19)
@@ -58,6 +61,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
         if (decodedData.missions && decodedData.targetTime) {
           setMissions(decodedData.missions);
           setTargetTime(decodedData.targetTime);
+          if (decodedData.bootsBonus) setBootsBonus(decodedData.bootsBonus);
           setLastCalculated("Imported from Link");
         }
       } catch (e) {
@@ -140,13 +144,13 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
       updateMission(missionId, { 
         startX: village.x, 
         startY: village.y,
-        tsLevel: village.ts_level // Automatically apply the saved TS level
+        tsLevel: village.ts_level 
       });
     }
   };
 
   const handleSave = () => {
-    localStorage.setItem('travian_attack_plan', JSON.stringify({ missions, targetTime }));
+    localStorage.setItem('travian_attack_plan', JSON.stringify({ missions, targetTime, bootsBonus }));
     alert('Orders Saved to Archives.');
   };
 
@@ -157,6 +161,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
         const parsed = JSON.parse(saved);
         setMissions(parsed.missions);
         setTargetTime(parsed.targetTime);
+        if (parsed.bootsBonus) setBootsBonus(parsed.bootsBonus);
         handleRecalculate();
       } catch (e) {
         console.error("Recall failed", e);
@@ -165,7 +170,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
   };
 
   const handleShareLink = () => {
-    const data = JSON.stringify({ missions, targetTime });
+    const data = JSON.stringify({ missions, targetTime, bootsBonus });
     const encoded = btoa(data);
     const url = new URL(window.location.href);
     url.hash = `plan=${encoded}`;
@@ -184,9 +189,13 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
       
       const distance = calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY);
       
+      // Speed calculation with Boots and TS
+      // Boots: only apply after 20 tiles. Additive with TS level.
+      const after20Mult = 1 + (m.tsLevel * 0.2) + (bootsBonus / 100);
+      
       let tHours = distance <= 20 
         ? distance / unit.speed 
-        : (20 / unit.speed) + ((distance - 20) / (unit.speed * (1 + m.tsLevel * 0.2)));
+        : (20 / unit.speed) + ((distance - 20) / (unit.speed * after20Mult));
 
       const travelTimeSeconds = Math.round(tHours * 3600);
       const launchDate = new Date(arrivalDate.getTime() - travelTimeSeconds * 1000);
@@ -199,7 +208,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
         launchDate
       };
     }).sort((a, b) => a.launchDate.getTime() - b.launchDate.getTime());
-  }, [missions, targetTime, refreshTrigger]);
+  }, [missions, targetTime, refreshTrigger, bootsBonus]);
 
   const groupedMissions = useMemo(() => {
     if (groupBy === 'none') return [{ key: 'all', label: null, items: calculatedMissions }];
@@ -248,7 +257,7 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full xl:w-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full xl:w-auto">
             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner">
               <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-widest">
                 <Clock className="w-3 h-3 text-amber-500" /> Current
@@ -271,6 +280,22 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
               />
             </div>
 
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 shadow-inner">
+              <label className="flex items-center gap-2 text-[10px] font-bold text-amber-500 uppercase mb-1 tracking-widest">
+                <Footprints className="w-3 h-3" /> Hero Arsenal (Boots)
+              </label>
+              <select 
+                value={bootsBonus} 
+                onChange={(e) => setBootsBonus(Number(e.target.value))}
+                className="bg-transparent border-none text-slate-100 focus:ring-0 outline-none font-mono text-sm w-full font-bold"
+              >
+                <option value="0" className="bg-slate-900">No Boots</option>
+                <option value="25" className="bg-slate-900">Boots of the Mercenary (+25%)</option>
+                <option value="50" className="bg-slate-900">Boots of the Warrior (+50%)</option>
+                <option value="75" className="bg-slate-900">Boots of the Archon (+75%)</option>
+              </select>
+            </div>
+
             <div className="flex gap-2">
               <button 
                 onClick={handleRecalculate} 
@@ -281,9 +306,9 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
                 Recalculate
               </button>
               <div className="flex gap-1">
-                <button onClick={handleSave} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 shadow-md"><Save className="w-5 h-5" /></button>
-                <button onClick={handleLoad} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 shadow-md"><Upload className="w-5 h-5" /></button>
-                <button onClick={handleShareLink} className="p-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg text-amber-500 shadow-md"><Share2 className="w-5 h-5" /></button>
+                <button onClick={handleSave} title="Save Plan" className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 shadow-md transition-colors"><Save className="w-5 h-5" /></button>
+                <button onClick={handleLoad} title="Load Plan" className="p-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 shadow-md transition-colors"><Upload className="w-5 h-5" /></button>
+                <button onClick={handleShareLink} title="Share Link" className="p-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg text-amber-500 shadow-md transition-colors"><Share2 className="w-5 h-5" /></button>
               </div>
             </div>
           </div>
@@ -362,7 +387,12 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
                             if (isNaN(ad.getTime())) return '---';
                             const dist = calculateWrappedDistance(m.startX, m.startY, m.endX, m.endY);
                             const unit = TROOP_DATA.find(u => u.unit === m.unitName && u.tribe === m.tribe) || { speed: 1 };
-                            let tHours = dist <= 20 ? dist / unit.speed : (20 / unit.speed) + ((dist - 20) / (unit.speed * (1 + m.tsLevel * 0.2)));
+                            
+                            const after20Mult = 1 + (m.tsLevel * 0.2) + (bootsBonus / 100);
+                            let tHours = dist <= 20 
+                                ? dist / unit.speed 
+                                : (20 / unit.speed) + ((dist - 20) / (unit.speed * after20Mult));
+                                
                             return new Date(ad.getTime() - tHours * 3600000).toISOString().slice(11, 19);
                           })()}
                         </span>
@@ -378,12 +408,12 @@ export const AttackCoordinator: React.FC<AttackCoordinatorProps> = ({ userVillag
         <div className="space-y-4">
           <div className="flex flex-col gap-3">
             <h3 className="text-lg font-bold text-white uppercase flex items-center gap-2"><ListOrdered className="w-5 h-5 text-amber-500" /> Wave Summary</h3>
-            <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-lg border border-slate-800 shadow-inner">
+            <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-lg border border-slate-800 shadow-inner text-nowrap">
               <label className="text-[10px] font-bold text-slate-600 uppercase pl-2 flex items-center gap-2 tracking-widest"><Layers className="w-3 h-3"/> Group:</label>
               <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as GroupByOption)} className="bg-transparent border-none text-[10px] font-bold text-amber-500 uppercase outline-none cursor-pointer tracking-widest">
-                <option value="none">Timeline</option>
-                <option value="target">By Target</option>
-                <option value="time">By Hour</option>
+                <option value="none" className="bg-slate-900">Timeline</option>
+                <option value="target" className="bg-slate-900">By Target</option>
+                <option value="time" className="bg-slate-900">By Hour</option>
               </select>
             </div>
           </div>
